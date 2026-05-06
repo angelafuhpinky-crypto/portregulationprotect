@@ -7,14 +7,16 @@ WORKDIR /app
 # 複製 package.json 和 package-lock.json
 COPY package*.json ./
 
-# 安裝所有依賴 (包含 devDependencies 以便進行 build)
-# 使用 npm ci 確保環境一致性
-RUN npm ci
+# 安裝所有依賴
+RUN npm install
 
 # 複製其餘程式碼
 COPY . .
 
-# 執行打法 (Vite 會將結果輸出到 dist/)
+# 如果有需要環境變數，可以在這裡設定
+# ENV VITE_APP_PASSWORD=port2024
+
+# 執行打包 (Vite 會將結果輸出到 dist/)
 RUN npm run build
 
 # 使用輕量的 Nginx 來提供靜態檔案
