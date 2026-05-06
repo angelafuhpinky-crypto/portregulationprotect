@@ -251,31 +251,31 @@ export default function App() {
     const defaults: Omit<ViolationType, 'id'>[] = [
       { name: '無裝卸許可證', level: '極嚴重', description: '無裝卸許可證' },
       
-      { name: '機具超過場地載重，且未外伸撐座或鋪設墊料', level: '重大', description: '機具超過場地載重，且未外伸撐座或鋪設墊料' },
-      { name: '貨物堆置超過場地載重限制', level: '重大', description: '貨物堆置超過場地載重限制' },
-      { name: '機具吊掛貨物超過荷重限制', level: '重大', description: '機具吊掛貨物超過荷重限制(依相關主管機關判定裁處)' },
-      { name: '堆高機操作超過荷重限制', level: '重大', description: '堆高機操作超過荷重限制(依相關主管機關判定裁處)' },
+      { name: '1. 機具超過場地載重，且未外伸撐座或鋪設墊料', level: '重大', description: '機具超過場地載重，且未外伸撐座或鋪設墊料' },
+      { name: '2. 貨物堆置超過場地載重限制', level: '重大', description: '貨物堆置超過場地載重限制' },
+      { name: '3. 機具吊掛貨物超過荷重限制', level: '重大', description: '機具吊掛貨物超過荷重限制(依相關主管機關判定裁處)' },
+      { name: '4. 堆高機操作超過荷重限制', level: '重大', description: '堆高機操作超過荷重限制(依相關主管機關判定裁處)' },
       
-      { name: '起重機具無防護措施承載或吊升人員作業', level: '一般', description: '起重機具無防護措施承載或吊升人員作業' },
-      { name: '吊掛或搬運作業未設立警示區', level: '一般', description: '吊掛或搬運作業未設立警示區' },
-      { name: '起重機具吊掛作業吊鉤或吊具無防脫落裝置', level: '一般', description: '起重機具吊掛作業吊鉤或吊具無防脫落裝置' },
-      { name: '堆高機無警示裝置或未開啟', level: '一般', description: '堆高機無警示裝置或未開啟' },
-      { name: '人員搭載於堆高機乘坐席以外(含托板等處)', level: '一般', description: '人員搭載於堆高機乘坐席以外(含托板等處)' },
-      { name: '吊掛作業無人員指揮', level: '一般', description: '吊掛作業無人員指揮' },
-      { name: '車輛機械搬運作業時無引導人員', level: '一般', description: '車輛機械搬運作業時無引導人員' },
-      { name: '未依指定區域堆(儲)放貨物或進行裝卸', level: '一般', description: '未依指定區域堆(儲)放貨物或進行裝卸' },
-      { name: '貨物滯留港區未事先申請', level: '一般', description: '貨物滯留港區未事先申請' },
-      { name: '堆高機超速', level: '一般', description: '堆高機超速(依相關主管機關判定裁處)' },
+      { name: '1. 起重機具無防護措施承載或吊升人員作業', level: '一般', description: '起重機具無防護措施承載或吊升人員作業' },
+      { name: '2. 吊掛或搬運作業未設立警示區', level: '一般', description: '吊掛或搬運作業未設立警示區' },
+      { name: '3. 起重機具吊掛作業吊鉤或吊具無防脫落裝置', level: '一般', description: '起重機具吊掛作業吊鉤或吊具無防脫落裝置' },
+      { name: '4. 堆高機無警示裝置或未開啟', level: '一般', description: '堆高機無警示裝置或未開啟' },
+      { name: '5. 人員搭載於堆高機乘坐席以外(含托板等處)', level: '一般', description: '人員搭載於堆高機乘坐席以外(含托板等處)' },
+      { name: '6. 吊掛作業無人員指揮', level: '一般', description: '吊掛作業無人員指揮' },
+      { name: '7. 車輛機械搬運作業時無引導人員', level: '一般', description: '車輛機械搬運作業時無引導人員' },
+      { name: '8. 未依指定區域堆(儲)放貨物或進行裝卸', level: '一般', description: '未依指定區域堆(儲)放貨物或進行裝卸' },
+      { name: '9. 貨物滯留港區未事先申請', level: '一般', description: '貨物滯留港區未事先申請' },
+      { name: '10. 堆高機超速', level: '一般', description: '堆高機超速(依相關主管機關判定裁處)' },
       
-      { name: '作業中未戴安全帽或反光背心', level: '輕微', description: '作業中未戴安全帽或反光背心' },
-      { name: '非作業車輛違規停放於裝卸作業區/妨礙裝卸/影響交通(紅線/轉彎處)等處', level: '輕微', description: '非作業車輛違規停放於【裝卸作業區】或【妨礙裝卸作業位置】或【影響交通安全(如紅線、港區道路轉彎處等)】等處' },
-      { name: '非作業人員進入裝卸作業區', level: '輕微', description: '非作業人員進入裝卸作業區' },
-      { name: '棄置廢棄物', level: '輕微', description: '棄置廢棄物' },
-      { name: '作業後未清潔現場', level: '輕微', description: '作業後未清潔現場' },
-      { name: '未落實環保防制措施', level: '輕微', description: '未落實環保防制措施(如未設置防塵網、未經洗車池、隨意在港區清理車斗等)' },
-      { name: '載貨掉落致危害', level: '輕微', description: '載貨掉落致危害' },
-      { name: '機具/車輛未適時開燈具', level: '輕微', description: '機具/車輛未適時開燈具' },
-      { name: '未事先申請進港或進倉裝卸作業', level: '輕微', description: '未事先申請進港或進倉裝卸作業' },
+      { name: '1. 作業中未戴安全帽或反光背心', level: '輕微', description: '作業中未戴安全帽或反光背心' },
+      { name: '2. 非作業車輛違規停放於【裝卸作業區】或【妨礙裝卸作業位置】或【影響交通安全(如紅線、港區道路轉彎處等)】等處', level: '輕微', description: '非作業車輛違規停放於【裝卸作業區】或【妨礙裝卸作業位置】或【影響交通安全(如紅線、港區道路轉彎處等)】等處' },
+      { name: '3. 非作業人員進入裝卸作業區', level: '輕微', description: '非作業人員進入裝卸作業區' },
+      { name: '4. 棄置廢棄物', level: '輕微', description: '棄置廢棄物' },
+      { name: '5. 作業後未清潔現場', level: '輕微', description: '作業後未清潔現場' },
+      { name: '6. 未落實環保防制措施(如未設置防塵網、未經洗車池、隨意在港區清理車斗等)', level: '輕微', description: '未落實環保防制措施(如未設置防塵網、未經洗車池、隨意在港區清理車斗等)' },
+      { name: '7. 載貨掉落致危害', level: '輕微', description: '載貨掉落致危害' },
+      { name: '8. 機具/車輛未適時開燈具', level: '輕微', description: '機具/車輛未適時開燈具' },
+      { name: '9. 未事先申請進港或進倉裝卸作業', level: '輕微', description: '未事先申請進港或進倉裝卸作業' },
     ];
 
     for (const item of defaults) {
@@ -1162,10 +1162,10 @@ export default function App() {
                 className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600"
               >
                 <option value="">-- 全部級別 --</option>
-                <option value="輕微">輕微違規 (1點)</option>
-                <option value="一般">一般違規 (1點)</option>
-                <option value="重大">重大違規 (1點)</option>
-                <option value="極嚴重">極嚴重違規 (1點)</option>
+                <option value="輕微">輕微違規</option>
+                <option value="一般">一般違規</option>
+                <option value="重大">重大違規</option>
+                <option value="極嚴重">極嚴重違規</option>
               </select>
             </div>
             <div>
