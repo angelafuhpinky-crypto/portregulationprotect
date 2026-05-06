@@ -1,0 +1,133 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == "t04261@twport.com.tw";
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidViolationType(data) {
+      return data.keys().hasAll(['name', 'level'])
+        && data.keys().size() <= 4
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.level in ['極嚴重', '重大', '一般', '輕微']
+        && (data.get('description', '') is string && data.get('description', '').size() <= 1000);
+    }
+
+    function isValidCompany(data) {
+      return data.keys().hasAll(['name'])
+        && data.keys().size() <= 5
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && (data.get('taxId', '') is string && data.get('taxId', '').size() <= 20)
+        && (data.get('businessType', '') is string && data.get('businessType', '').size() <= 100);
+    }
+
+    function isValidViolation(data) {
+      return data.keys().hasAll(['companyId', 'date', 'level', 'year'])
+        && data.keys().size() <= 17
+        && data.companyId is string && data.companyId.size() <= 128
+        && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.level in ['極嚴重', '重大', '一般', '輕微']
+        && data.year is int && data.year >= 2020 && data.year <= 2100
+        && (data.get('docNumber', '') is string && data.get('docNumber', '').size() <= 100)
+        && (data.get('description', '') is string && data.get('description', '').size() <= 2000)
+        && (data.get('points', 1) is int)
+        && (data.get('isCancelled', false) is bool)
+        && (data.get('isAppealFinished', false) is bool)
+        && (data.get('cancelReason', '') is string && data.get('cancelReason', '').size() <= 1000)
+        && (data.get('violationTypeName', '') is string && data.get('violationTypeName', '').size() <= 300)
+        && (data.get('attachments', []) is list)
+        && (data.get('appeal', null) == null || (
+             data.appeal.get('fileUrl', '') is string && data.appeal.get('fileUrl', '').size() <= 1000
+             && data.appeal.get('fileName', '') is string && data.appeal.get('fileName', '').size() <= 200
+             && data.appeal.get('explanation', '') is string && data.appeal.get('explanation', '').size() <= 2000
+           ));
+    }
+
+    function isValidSuspension(data) {
+      return data.keys().hasAll(['companyId', 'startDate', 'endDate'])
+        && data.keys().size() <= 7
+        && data.companyId is string && data.companyId.size() <= 128
+        && data.startDate is string && data.startDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.endDate is string && data.endDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.endDate >= data.startDate
+        && (data.get('note', '') is string && data.get('note', '').size() <= 1000);
+    }
+
+    function isValidAppeal(data) {
+      return data.keys().hasAll(['violationId', 'date', 'description'])
+        && data.keys().size() <= 6
+        && data.violationId is string && data.violationId.size() <= 128
+        && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.description is string && data.description.size() > 0 && data.description.size() <= 5000
+        && (data.get('attachments', []) is list);
+    }
+
+    // --- Collections ---
+
+    match /violationTypes/{typeId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(typeId) && isValidViolationType(incoming()); // Staff can add common types too
+      allow update: if isSignedIn() && isValidViolationType(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /companies/{coId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(coId) && isValidCompany(incoming());
+      allow update: if isSignedIn() && isValidCompany(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /violations/{vId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(vId) && isValidViolation(incoming())
+                    && exists(/databases/$(database)/documents/companies/$(incoming().companyId));
+      allow update: if isSignedIn() && isValidViolation(incoming())
+                    && (
+                      incoming().diff(existing()).affectedKeys().hasAny(['isCancelled', 'cancelReason', 'appeal', 'description', 'docNumber', 'violationTypeName', 'level', 'date', 'year', 'attachments', 'isAppealFinished'])
+                    );
+      allow delete: if isSignedIn();
+    }
+
+    match /suspensions/{sId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(sId) && isValidSuspension(incoming())
+                    && exists(/databases/$(database)/documents/companies/$(incoming().companyId));
+      allow update: if isSignedIn() && isValidSuspension(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /appeals/{aId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(aId) && isValidAppeal(incoming())
+                    && exists(/databases/$(database)/documents/violations/$(incoming().violationId));
+      allow update: if isSignedIn() && isValidAppeal(incoming());
+      allow delete: if isAdmin();
+    }
+  }
+}

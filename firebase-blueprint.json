@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "ViolationType": {
+      "title": "Violation Type",
+      "description": "Standardized categories of violations in the port area",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "level": { "type": "string", "enum": ["極嚴重", "重大", "一般", "輕微"] },
+        "description": { "type": "string" }
+      },
+      "required": ["name", "level"]
+    },
+    "Company": {
+      "title": "Company",
+      "description": "Information about companies operating in the port",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "taxId": { "type": "string" },
+        "businessType": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "ViolationRecord": {
+      "title": "Violation Record",
+      "description": "An individual violation incident recorded for a company",
+      "type": "object",
+      "properties": {
+        "companyId": { "type": "string" },
+        "violationTypeId": { "type": "string" },
+        "violationTypeName": { "type": "string" },
+        "level": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "docNumber": { "type": "string" },
+        "description": { "type": "string" },
+        "year": { "type": "number" },
+        "points": { "type": "number" },
+        "isCancelled": { "type": "boolean" },
+        "cancelReason": { "type": "string" },
+        "isAppealFinished": { "type": "boolean" },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "data": { "type": "string" },
+              "type": { "type": "string" }
+            }
+          }
+        },
+        "appeal": {
+          "type": "object",
+          "properties": {
+            "fileUrl": { "type": "string" },
+            "fileName": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["companyId", "date", "level", "year"]
+    },
+    "SuspensionRecord": {
+      "title": "Suspension Record",
+      "description": "Record of permit suspension period for a company",
+      "type": "object",
+      "properties": {
+        "companyId": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["companyId", "startDate", "endDate"]
+    },
+    "AppealRecord": {
+      "title": "Appeal Record",
+      "description": "Record of an appeal for a specific violation",
+      "type": "object",
+      "properties": {
+        "violationId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "description": { "type": "string" },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "data": { "type": "string" },
+              "type": { "type": "string" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["violationId", "date", "description"]
+    }
+  },
+  "firestore": {
+    "violationTypes": {
+      "schema": "ViolationType",
+      "description": "Master list of violation categories"
+    },
+    "companies": {
+      "schema": "Company",
+      "description": "Registered companies"
+    },
+    "violations": {
+      "schema": "ViolationRecord",
+      "description": "Recorded violation incidents"
+    },
+    "suspensions": {
+      "schema": "SuspensionRecord",
+      "description": "Suspension periods for companies"
+    },
+    "appeals": {
+      "schema": "AppealRecord",
+      "description": "Appeal records for violations"
+    }
+  }
+}
