@@ -81,6 +81,6 @@ export const logout = () => auth.signOut();
 export const verifyPassword = async (password: string) => {
   // In a real app, this should be a call to a backend function or verified against a secure source.
   // For this applet, we compare against an environment variable or a default value.
-  const appPassword = import.meta.env.VITE_APP_PASSWORD || 'port2024';
+  const appPassword = import.meta.env.VITE_APP_PASSWORD || '5622230';
   return password === appPassword;
 };

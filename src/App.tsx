@@ -341,7 +341,7 @@ export default function App() {
     if (!passwordInput.trim()) return;
     setPasswordLoading(true);
     setPasswordError('');
-    const ok = await verifyPassword(passwordInput);
+    const ok = await verifyPassword(passwordInput.trim());
     setPasswordLoading(false);
     if (ok) {
       sessionStorage.setItem('port_auth', '1');

@@ -14,7 +14,7 @@ RUN npm install
 COPY . .
 
 # 如果有需要環境變數，可以在這裡設定
-# ENV VITE_APP_PASSWORD=port2024
+ENV VITE_APP_PASSWORD=5622230
 
 # 執行打包 (Vite 會將結果輸出到 dist/)
 RUN npm run build
