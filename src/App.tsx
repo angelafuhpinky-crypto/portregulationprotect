@@ -1177,11 +1177,11 @@ export default function App() {
                 className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600" 
                 defaultValue={editingViolation?.violationTypeId || ""}
               >
-                <option value="">{formLevelFilter ? `-- 請選擇${formLevelFilter}類別的態樣 --` : "-- 請選擇違規態樣 --"}</option>
+                <option value="">{formLevelFilter ? `-- 請選擇 ${formLevelFilter} 類別態樣 --` : "-- 請選擇違規態樣 --"}</option>
                 {violationTypes
                   .filter(t => !formLevelFilter || t.level === formLevelFilter)
                   .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                <option value="other">其他 (自定義輸入)</option>
+                <option value="other">其他 (自定義輸入內容)</option>
               </select>
             </div>
           </div>
