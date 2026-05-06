@@ -231,8 +231,10 @@ export default function App() {
   const [appealDescription, setAppealDescription] = useState("");
   const [appealAttachments, setAppealAttachments] = useState<Attachment[]>([]);
   const [editingAppeal, setEditingAppeal] = useState<AppealRecord | null>(null);
+  const [selectedTypeId, setSelectedTypeId] = useState<string>("");
+  const [otherTypeName, setOtherTypeName] = useState<string>("");
 
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   const { 
     companies, 
@@ -437,12 +439,6 @@ export default function App() {
     e.preventDefault();
     if (!selectedViolationForDetail) return;
 
-    if (selectedViolationForDetail && !selectedViolationForDetail.isAppealFinished) {
-      await updateRecord('violations', selectedViolationForDetail.id, {
-        isAppealFinished: false
-      });
-    }
-
     if (editingAppeal) {
       await updateRecord('appeals', editingAppeal.id, {
         description: appealDescription,
@@ -456,6 +452,11 @@ export default function App() {
         attachments: appealAttachments,
       };
       await addRecord('appeals', appealData);
+      
+      // Update violation to show it has an appeal (not finished yet)
+      await updateRecord('violations', selectedViolationForDetail.id, {
+        isAppealFinished: false
+      });
     }
     
     setShowAppealModal(false);
@@ -706,7 +707,7 @@ export default function App() {
                     </thead>
                     <tbody>
                       {filteredStats.slice(0, 10).map(stat => (
-                        <tr key={stat.company.id} className="hover:bg-slate-50 active:bg-slate-100 transition-colors duration-75 cursor-pointer select-none" onClick={() => setSelectedCompanyId(stat.company.id)}>
+                        <tr key={stat.company.id} className="hover:bg-slate-50 transition-colors duration-75 cursor-pointer select-none" onClick={() => setSelectedCompanyId(stat.company.id)}>
                           <td className="font-bold text-[15px]">{stat.company.name}</td>
                           <td className="text-center font-black text-[17px]">
                             <span className={stat.totalPoints >= 3 ? 'text-red-600' : 'text-slate-900'}>
@@ -723,7 +724,9 @@ export default function App() {
                             )}
                           </td>
                           <td className="text-right">
-                            <ChevronRight className="w-4 h-4 text-slate-300 ml-auto" />
+                            <div className="flex items-center justify-end gap-2">
+                              <ChevronRight className="w-4 h-4 text-slate-300" />
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -856,9 +859,29 @@ export default function App() {
                             
                             <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-2">
                               <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                                <Button variant="secondary" className="p-1 h-7 w-7">
+                                <button 
+                                  onClick={() => {
+                                    setEditingViolation(v);
+                                    setFormLevelFilter(v.level);
+                                    setSelectedTypeId(v.violationTypeId || 'other');
+                                    setOtherTypeName(v.violationTypeId === 'other' ? v.violationTypeName : '');
+                                    setFormAttachments(v.attachments || []);
+                                    setShowViolationModal(true);
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
+                                >
                                   <Edit3 className="w-4 h-4" />
-                                </Button>
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    if (confirm('確定要執行刪除？此動作無法復原。')) {
+                                      removeRecord('violations', v.id);
+                                    }
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                                 <Button variant="secondary" className="p-1 h-7 w-14 text-sm" onClick={() => setShowCancelModal(v)}>
                                   撤銷
                                 </Button>
@@ -960,6 +983,33 @@ export default function App() {
                             {v.isCancelled ? <Badge className="bg-slate-200 text-slate-400">已撤銷</Badge> : <Badge className="bg-blue-600 text-white">正常累計</Badge>}
                           </td>
                           <td className="text-right flex justify-end gap-1">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingViolation(v);
+                                setFormLevelFilter(v.level);
+                                setSelectedTypeId(v.violationTypeId || 'other');
+                                setOtherTypeName(v.violationTypeId === 'other' ? v.violationTypeName : '');
+                                setFormAttachments(v.attachments || []);
+                                setShowViolationModal(true);
+                              }}
+                              className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
+                              title="編輯"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm('確定要刪除此筆記錄？')) {
+                                  removeRecord('violations', v.id);
+                                }
+                              }}
+                              className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                              title="刪除"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                             <Button variant="secondary" className="h-7 px-2 text-xs" onClick={() => setSelectedViolationForDetail(v)}>
                               案件詳情
                             </Button>
@@ -1146,19 +1196,15 @@ export default function App() {
               <input name="date" type="date" required className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600" defaultValue={editingViolation?.date || new Date().toISOString().split('T')[0]} />
             </div>
             <div>
-              <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">函文字號</label>
-              <input name="docNumber" placeholder="字號-0000" className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600" defaultValue={editingViolation?.docNumber || ""} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">違規分級</label>
+              <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">違規分結</label>
               <select 
                 name="level" 
                 required
                 value={formLevelFilter}
-                onChange={(e) => setFormLevelFilter(e.target.value as ViolationLevel)}
+                onChange={(e) => {
+                  setFormLevelFilter(e.target.value as ViolationLevel);
+                  setSelectedTypeId("");
+                }}
                 className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600"
               >
                 <option value="">-- 全部級別 --</option>
@@ -1168,31 +1214,48 @@ export default function App() {
                 <option value="極嚴重">極嚴重違規</option>
               </select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
             <div>
               <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">違規態樣分類</label>
               <select 
-                key={formLevelFilter}
                 name="type" 
                 required
+                value={selectedTypeId}
+                onChange={(e) => setSelectedTypeId(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600" 
-                defaultValue={editingViolation?.violationTypeId || ""}
               >
                 <option value="">{formLevelFilter ? `-- 請選擇 ${formLevelFilter} 類別態樣 --` : "-- 請選擇違規態樣 --"}</option>
                 {violationTypes
                   .filter(t => !formLevelFilter || t.level === formLevelFilter)
                   .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                <option value="other">其他 (自定義輸入內容)</option>
+                <option value="other">其他 (最後一格寫其他)</option>
               </select>
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">自定義態樣名稱 (若選其他)</label>
-            <input name="otherType" placeholder="請輸入自定義態樣內容..." className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600" defaultValue={editingViolation?.violationTypeId === 'other' ? editingViolation.violationTypeName : ''} />
+          {(selectedTypeId === 'other' || (!selectedTypeId && editingViolation?.violationTypeId === 'other')) && (
+            <div className="space-y-1 animate-in slide-in-from-top-1 duration-150">
+              <label className="text-[12px] font-black uppercase tracking-widest text-slate-400 mb-1 block">自定義態樣名稱</label>
+              <input 
+                name="otherType" 
+                required
+                value={otherTypeName}
+                onChange={(e) => setOtherTypeName(e.target.value)}
+                placeholder="請輸入自定義態樣內容..." 
+                className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600" 
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">違規函號</label>
+            <input name="docNumber" placeholder="如：港務字第..." className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600" defaultValue={editingViolation?.docNumber || ""} />
           </div>
 
           <div>
-            <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">違規情事摘要</label>
+            <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">詳細事由描述</label>
             <textarea 
               name="description" 
               rows={3} 
@@ -1203,7 +1266,7 @@ export default function App() {
           </div>
 
           <div>
-            <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">上傳檢附附件</label>
+            <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">上傳檢附附件 (可拖曳上傳)</label>
             <FileUploader 
               onFileSelect={setFormAttachments} 
               existingFiles={editingViolation?.attachments || []} 
@@ -1214,7 +1277,7 @@ export default function App() {
             <Button type="submit" className="flex-1 h-10 text-sm font-black uppercase tracking-widest">
               {editingViolation ? "存回變更" : "正式登記違規"}
             </Button>
-            <Button onClick={() => { setShowViolationModal(false); setEditingViolation(null); }} variant="secondary" className="h-10 px-6 text-sm font-black uppercase tracking-widest">取消</Button>
+            <Button onClick={() => { setShowViolationModal(false); setEditingViolation(null); setSelectedTypeId(""); setOtherTypeName(""); }} variant="secondary" className="h-10 px-6 text-sm font-black uppercase tracking-widest">取消</Button>
           </div>
         </form>
       </Modal>
