@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.env
+.env.local
+.DS_Store
+README.md
+Dockerfile
+.dockerignore
+firebase-blueprint.json
+DRAFT_firestore.rules
+security_spec.md
