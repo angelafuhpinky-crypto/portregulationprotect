@@ -1223,27 +1223,35 @@ export default function App() {
                 name="type" 
                 required
                 value={selectedTypeId}
-                onChange={(e) => setSelectedTypeId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedTypeId(e.target.value);
+                  if (e.target.value !== 'other') {
+                    const type = violationTypes.find(t => t.id === e.target.value);
+                    if (type) setOtherTypeName(type.name);
+                  } else {
+                    setOtherTypeName("");
+                  }
+                }}
                 className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600" 
               >
                 <option value="">{formLevelFilter ? `-- 請選擇 ${formLevelFilter} 類別態樣 --` : "-- 請選擇違規態樣 --"}</option>
                 {violationTypes
                   .filter(t => !formLevelFilter || t.level === formLevelFilter)
                   .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                <option value="other">其他 (最後一格寫其他)</option>
+                <option value="other">其他 (手動輸入)</option>
               </select>
             </div>
           </div>
 
           {(selectedTypeId === 'other' || (!selectedTypeId && editingViolation?.violationTypeId === 'other')) && (
             <div className="space-y-1 animate-in slide-in-from-top-1 duration-150">
-              <label className="text-[12px] font-black uppercase tracking-widest text-slate-400 mb-1 block">自定義態樣名稱</label>
+              <label className="text-[12px] font-black uppercase tracking-widest text-slate-400 mb-1 block">自定義文字內容</label>
               <input 
                 name="otherType" 
                 required
                 value={otherTypeName}
                 onChange={(e) => setOtherTypeName(e.target.value)}
-                placeholder="請輸入自定義態樣內容..." 
+                placeholder="請輸入違規態樣描述..." 
                 className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600" 
               />
             </div>
