@@ -215,6 +215,7 @@ export default function App() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'violations' | 'companies' | 'suspensions' | 'config'>('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [showViolationModal, setShowViolationModal] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -244,20 +245,23 @@ export default function App() {
     appeals,
     companyStats, 
     loading,
-    addRecord, 
+    addRecord,
     updateRecord, 
     removeRecord 
   } = useData();
 
   const handleInitializeDefaults = useCallback(async () => {
-    const defaults: Omit<ViolationType, 'id'>[] = [
-      { name: '無裝卸許可證', level: '極嚴重', description: '無裝卸許可證' },
+    const defaults = [
+      // 極嚴重違規
+      { name: '1. 無裝卸許可證', level: '極嚴重', description: '無裝卸許可證' },
       
+      // 重大違規
       { name: '1. 機具超過場地載重，且未外伸撐座或鋪設墊料', level: '重大', description: '機具超過場地載重，且未外伸撐座或鋪設墊料' },
       { name: '2. 貨物堆置超過場地載重限制', level: '重大', description: '貨物堆置超過場地載重限制' },
       { name: '3. 機具吊掛貨物超過荷重限制', level: '重大', description: '機具吊掛貨物超過荷重限制(依相關主管機關判定裁處)' },
       { name: '4. 堆高機操作超過荷重限制', level: '重大', description: '堆高機操作超過荷重限制(依相關主管機關判定裁處)' },
       
+      // 一般違規
       { name: '1. 起重機具無防護措施承載或吊升人員作業', level: '一般', description: '起重機具無防護措施承載或吊升人員作業' },
       { name: '2. 吊掛或搬運作業未設立警示區', level: '一般', description: '吊掛或搬運作業未設立警示區' },
       { name: '3. 起重機具吊掛作業吊鉤或吊具無防脫落裝置', level: '一般', description: '起重機具吊掛作業吊鉤或吊具無防脫落裝置' },
@@ -269,6 +273,7 @@ export default function App() {
       { name: '9. 貨物滯留港區未事先申請', level: '一般', description: '貨物滯留港區未事先申請' },
       { name: '10. 堆高機超速', level: '一般', description: '堆高機超速(依相關主管機關判定裁處)' },
       
+      // 輕微違規
       { name: '1. 作業中未戴安全帽或反光背心', level: '輕微', description: '作業中未戴安全帽或反光背心' },
       { name: '2. 非作業車輛違規停放於【裝卸作業區】或【妨礙裝卸作業位置】或【影響交通安全(如紅線、港區道路轉彎處等)】等處', level: '輕微', description: '非作業車輛違規停放於【裝卸作業區】或【妨礙裝卸作業位置】或【影響交通安全(如紅線、港區道路轉彎處等)】等處' },
       { name: '3. 非作業人員進入裝卸作業區', level: '輕微', description: '非作業人員進入裝卸作業區' },
@@ -277,41 +282,38 @@ export default function App() {
       { name: '6. 未落實環保防制措施(如未設置防塵網、未經洗車池、隨意在港區清理車斗等)', level: '輕微', description: '未落實環保防制措施(如未設置防塵網、未經洗車池、隨意在港區清理車斗等)' },
       { name: '7. 載貨掉落致危害', level: '輕微', description: '載貨掉落致危害' },
       { name: '8. 機具/車輛未適時開燈具', level: '輕微', description: '機具/車輛未適時開燈具' },
-      { name: '9. 未事先申請進港或進倉裝卸作業', level: '輕微', description: '未事先申請進港或進倉裝卸作業' },
+      { name: '9. 未事先申請進港 or 進倉裝卸作業', level: '輕微', description: '未事先申請進港或進倉裝卸作業' },
     ];
 
     for (const item of defaults) {
-      const exists = violationTypes.some(t => t.name === item.name);
-      if (!exists) {
+      if (!violationTypes.some(t => t.name === item.name)) {
         await addRecord('violationTypes', item);
       }
     }
   }, [violationTypes, addRecord]);
 
   useEffect(() => {
-    const migrateLevels = async () => {
+    if (!loading && user && violationTypes.length === 0) {
+      handleInitializeDefaults();
+    }
+  }, [violationTypes, loading, user, handleInitializeDefaults]);
+
+  useEffect(() => {
+    const migrate = async () => {
       if (loading || !user || violationTypes.length === 0) return;
-      
-      const needsMigration = violationTypes.some(t => t.level.includes('('));
+      const needsMigration = violationTypes.some(t => t.level.includes('違規'));
       if (needsMigration) {
-        console.log('Migrating violation levels...');
         for (const t of violationTypes) {
-          if (t.level.includes('(')) {
-            const cleanLevel = t.level.split(' ')[0] as ViolationLevel;
+          if (t.level.includes('違規')) {
+            const cleanLevel = t.level.replace('違規', '').trim() as ViolationLevel;
             await updateRecord('violationTypes', t.id, { level: cleanLevel });
           }
         }
       }
     };
-    migrateLevels();
+    migrate();
   }, [violationTypes, loading, user, updateRecord]);
 
-  useEffect(() => {
-    // Auto-initialize violation types if they don't exist and loading is complete
-    if (!loading && user && violationTypes.length === 0) {
-      handleInitializeDefaults();
-    }
-  }, [violationTypes, loading, user, handleInitializeDefaults]);
 
   useEffect(() => {
     // 保持登入狀態（關閉分頁後清除，重新開啟需再輸入密碼）
@@ -542,17 +544,22 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-port-bg font-sans text-stone-800 flex">
+    <div className="min-h-screen bg-port-bg font-sans text-stone-800 flex flex-col md:flex-row">
       {/* Sidebar Nav */}
-      <nav className="fixed md:relative top-0 left-0 bottom-0 w-64 bg-port-slate text-stone-100 z-50 p-4 flex flex-col hide-mobile">
-        <div className="flex items-center gap-3 px-3 py-6 border-b border-white/5 mb-6">
-          <div className="w-8 h-8 bg-port-blue rounded flex items-center justify-center text-white shadow-lg shadow-black/10">
-            <Shield className="w-6 h-6 text-white" />
+      <nav className={`fixed md:relative top-0 left-0 bottom-0 w-64 bg-port-slate text-stone-100 z-50 p-4 flex-col transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0 flex' : '-translate-x-full md:translate-x-0 md:flex shadow-2xl md:shadow-none'}`}>
+        <div className="flex items-center justify-between md:block mb-6 md:mb-0">
+          <div className="flex items-center gap-3 px-3 py-6 border-b border-white/5 md:mb-6 flex-1">
+            <div className="w-8 h-8 bg-port-blue rounded flex items-center justify-center text-white shadow-lg shadow-black/10 text-xl font-bold">
+              S
+            </div>
+            <div>
+              <h1 className="text-[17px] font-black text-white tracking-tighter uppercase leading-none">Port Safety</h1>
+              <p className="text-xs text-port-blue font-black uppercase mt-1 tracking-widest">港區監督管理系統</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-[17px] font-black text-white tracking-tighter uppercase leading-none">Port Safety</h1>
-            <p className="text-xs text-port-blue font-black uppercase mt-1 tracking-widest">港區監督管理系統</p>
-          </div>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 text-white hover:bg-white/10 rounded">
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
         <div className="space-y-1">
@@ -565,7 +572,11 @@ export default function App() {
           ].map(item => (
             <button
               key={item.id}
-              onClick={() => { setActiveTab(item.id as 'dashboard' | 'violations' | 'companies' | 'suspensions' | 'config'); setSelectedCompanyId(null); }}
+              onClick={() => { 
+                setActiveTab(item.id as 'dashboard' | 'violations' | 'companies' | 'suspensions' | 'config'); 
+                setSelectedCompanyId(null); 
+                setIsMobileMenuOpen(false);
+              }}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-black uppercase tracking-widest transition-[background-color,color] duration-100 select-none ${
                 activeTab === item.id 
                   ? 'bg-port-blue text-white shadow-lg shadow-black/10' 
@@ -597,33 +608,45 @@ export default function App() {
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="h-12 bg-white border-b border-slate-200 flex items-center px-6 justify-between flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] font-bold text-slate-400 uppercase tracking-widest">管理後台</span>
-            <ChevronRight className="w-4 h-4 text-slate-300" />
-            <span className="text-[13px] font-bold text-slate-900 uppercase tracking-widest">
+        <header className="h-14 bg-white border-b border-slate-200 flex items-center px-4 md:px-6 justify-between flex-shrink-0 sticky top-0 z-40">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="md:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded transition-colors"
+            >
+              <nav className="w-6 h-5 flex flex-col justify-between items-center group">
+                <span className="w-full h-0.5 bg-current rounded-full transition-all"></span>
+                <span className="w-full h-0.5 bg-current rounded-full transition-all opacity-100"></span>
+                <span className="w-full h-0.5 bg-current rounded-full transition-all"></span>
+              </nav>
+            </button>
+            <div className="flex items-center gap-1 md:gap-2">
+              <span className="text-[11px] md:text-[13px] font-bold text-slate-400 uppercase tracking-widest">管理後台</span>
+              <ChevronRight className="w-3 md:w-4 h-3 md:h-4 text-slate-300" />
+              <span className="text-[11px] md:text-[13px] font-bold text-slate-900 uppercase tracking-widest truncate max-w-[100px] md:max-w-none">
               {activeTab === 'dashboard' ? '主要面板' : 
                activeTab === 'violations' ? '違規總表' : 
                activeTab === 'companies' ? '公司清單' : 
                activeTab === 'suspensions' ? '扣證管理' : '系統設定'}
             </span>
           </div>
+        </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
              {/* Year Selector */}
              <div className="flex bg-slate-100 rounded p-0.5">
                 {[2025, 2024, 2023].map(y => (
                   <button 
                     key={y}
                     onClick={() => setViewYear(y)}
-                    className={`px-3 py-1 rounded text-[13px] font-bold transition-[background-color,color] duration-100 select-none ${viewYear === y ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 active:bg-white/70'}`}
+                    className={`px-2 md:px-3 py-1 rounded text-[11px] md:text-[13px] font-bold transition-[background-color,color] duration-100 select-none ${viewYear === y ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 active:bg-white/70'}`}
                   >
                     {y}
                   </button>
                 ))}
              </div>
-             <Button variant="primary" className="h-8 px-4" onClick={() => { setFormLevelFilter(""); setShowViolationModal(true); }}>
-                <Plus className="w-4 h-4" /> 新增記錄
+             <Button variant="primary" className="h-8 px-2 md:px-4 text-[11px] md:text-sm" onClick={() => { setFormLevelFilter(""); setShowViolationModal(true); }}>
+                <Plus className="w-4 h-4" /> <span className="hidden xs:inline">新增記錄</span>
              </Button>
           </div>
         </header>
@@ -695,8 +718,8 @@ export default function App() {
                     />
                   </div>
                 </div>
-                <Card>
-                  <table className="w-full text-left dense-table">
+                <Card className="overflow-x-auto">
+                  <table className="w-full text-left dense-table min-w-[600px] md:min-w-0">
                     <thead>
                       <tr>
                         <th>公司名稱</th>
@@ -922,8 +945,8 @@ export default function App() {
               </div>
             </div>
 
-            <Card>
-               <div className="p-2 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+            <Card className="overflow-x-auto">
+               <div className="p-2 border-b border-slate-100 flex items-center justify-between bg-slate-50 min-w-[800px] md:min-w-0">
                   <div className="relative w-72">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input 
@@ -957,7 +980,7 @@ export default function App() {
                     </div>
                   </div>
                </div>
-               <table className="w-full text-left dense-table">
+               <table className="w-full text-left dense-table min-w-[800px] md:min-w-0">
                   <thead>
                     <tr>
                       <th>業者名稱</th>
@@ -1075,8 +1098,8 @@ export default function App() {
               </Button>
             </div>
 
-            <Card>
-              <table className="w-full text-left dense-table">
+            <Card className="overflow-x-auto">
+              <table className="w-full text-left dense-table min-w-[800px] md:min-w-0">
                   <thead>
                     <tr>
                       <th>業者名稱</th>
