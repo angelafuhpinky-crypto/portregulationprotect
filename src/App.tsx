@@ -253,48 +253,64 @@ export default function App() {
   const handleInitializeDefaults = useCallback(async () => {
     const defaults = [
       // 極嚴重違規
-      { name: '1. 無裝卸許可證', level: '極嚴重', description: '無裝卸許可證' },
+      { name: '1. 無裝卸許可證', level: '極嚴重' as ViolationLevel, description: '無裝卸許可證' },
       
       // 重大違規
-      { name: '1. 機具超過場地載重，且未外伸撐座或鋪設墊料', level: '重大', description: '機具超過場地載重，且未外伸撐座或鋪設墊料' },
-      { name: '2. 貨物堆置超過場地載重限制', level: '重大', description: '貨物堆置超過場地載重限制' },
-      { name: '3. 機具吊掛貨物超過荷重限制', level: '重大', description: '機具吊掛貨物超過荷重限制(依相關主管機關判定裁處)' },
-      { name: '4. 堆高機操作超過荷重限制', level: '重大', description: '堆高機操作超過荷重限制(依相關主管機關判定裁處)' },
+      { name: '1. 機具超過場地載重，且未外伸撐座或鋪設墊料', level: '重大' as ViolationLevel, description: '機具超過場地載重，且未外伸撐座或鋪設墊料' },
+      { name: '2. 貨物堆置超過場地載重限制', level: '重大' as ViolationLevel, description: '貨物堆置超過場地載重限制' },
+      { name: '3. 機具吊掛貨物超過荷重限制', level: '重大' as ViolationLevel, description: '機具吊掛貨物超過荷重限制(依相關主管機關判定裁處)' },
+      { name: '4. 堆高機操作超過荷重限制', level: '重大' as ViolationLevel, description: '堆高機操作超過荷重限制(依相關主管機關判定裁處)' },
       
       // 一般違規
-      { name: '1. 起重機具無防護措施承載或吊升人員作業', level: '一般', description: '起重機具無防護措施承載或吊升人員作業' },
-      { name: '2. 吊掛或搬運作業未設立警示區', level: '一般', description: '吊掛或搬運作業未設立警示區' },
-      { name: '3. 起重機具吊掛作業吊鉤或吊具無防脫落裝置', level: '一般', description: '起重機具吊掛作業吊鉤或吊具無防脫落裝置' },
-      { name: '4. 堆高機無警示裝置或未開啟', level: '一般', description: '堆高機無警示裝置或未開啟' },
-      { name: '5. 人員搭載於堆高機乘坐席以外(含托板等處)', level: '一般', description: '人員搭載於堆高機乘坐席以外(含托板等處)' },
-      { name: '6. 吊掛作業無人員指揮', level: '一般', description: '吊掛作業無人員指揮' },
-      { name: '7. 車輛機械搬運作業時無引導人員', level: '一般', description: '車輛機械搬運作業時無引導人員' },
-      { name: '8. 未依指定區域堆(儲)放貨物或進行裝卸', level: '一般', description: '未依指定區域堆(儲)放貨物或進行裝卸' },
-      { name: '9. 貨物滯留港區未事先申請', level: '一般', description: '貨物滯留港區未事先申請' },
-      { name: '10. 堆高機超速', level: '一般', description: '堆高機超速(依相關主管機關判定裁處)' },
+      { name: '1. 起重機具無防護措施承載或吊升人員作業', level: '一般' as ViolationLevel, description: '起重機具無防護措施承載或吊升人員作業' },
+      { name: '2. 吊掛或搬運作業未設立警示區', level: '一般' as ViolationLevel, description: '吊掛或搬運作業未設立警示區' },
+      { name: '3. 起重機具吊掛作業吊鉤或吊具無防脫落裝置', level: '一般' as ViolationLevel, description: '起重機具吊掛作業吊鉤或吊具無防脫落裝置' },
+      { name: '4. 堆高機無警示裝置或未開啟', level: '一般' as ViolationLevel, description: '堆高機無警示裝置或未開啟' },
+      { name: '5. 人員搭載於堆高機乘坐席以外(含托板等處)', level: '一般' as ViolationLevel, description: '人員搭載於堆高機乘坐席以外(含托板等處)' },
+      { name: '6. 吊掛作業無人員指揮', level: '一般' as ViolationLevel, description: '吊掛作業無人員指揮' },
+      { name: '7. 車輛機械搬運作業時無引導人員', level: '一般' as ViolationLevel, description: '車輛機械搬運作業時無引導人員' },
+      { name: '8. 未依指定區域堆(儲)放貨物或進行裝卸', level: '一般' as ViolationLevel, description: '未依指定區域堆(儲)放貨物或進行裝卸' },
+      { name: '9. 貨物滯留港區未事先申請', level: '一般' as ViolationLevel, description: '貨物滯留港區未事先申請' },
+      { name: '10. 堆高機超速', level: '一般' as ViolationLevel, description: '堆高機超速(依相關主管機關判定裁處)' },
       
       // 輕微違規
-      { name: '1. 作業中未戴安全帽或反光背心', level: '輕微', description: '作業中未戴安全帽或反光背心' },
-      { name: '2. 非作業車輛違規停放於【裝卸作業區】或【妨礙裝卸作業位置】或【影響交通安全(如紅線、港區道路轉彎處等)】等處', level: '輕微', description: '非作業車輛違規停放於【裝卸作業區】或【妨礙裝卸作業位置】或【影響交通安全(如紅線、港區道路轉彎處等)】等處' },
-      { name: '3. 非作業人員進入裝卸作業區', level: '輕微', description: '非作業人員進入裝卸作業區' },
-      { name: '4. 棄置廢棄物', level: '輕微', description: '棄置廢棄物' },
-      { name: '5. 作業後未清潔現場', level: '輕微', description: '作業後未清潔現場' },
-      { name: '6. 未落實環保防制措施(如未設置防塵網、未經洗車池、隨意在港區清理車斗等)', level: '輕微', description: '未落實環保防制措施(如未設置防塵網、未經洗車池、隨意在港區清理車斗等)' },
-      { name: '7. 載貨掉落致危害', level: '輕微', description: '載貨掉落致危害' },
-      { name: '8. 機具/車輛未適時開燈具', level: '輕微', description: '機具/車輛未適時開燈具' },
-      { name: '9. 未事先申請進港 or 進倉裝卸作業', level: '輕微', description: '未事先申請進港或進倉裝卸作業' },
+      { name: '1. 作業中未戴安全帽或反光背心', level: '輕微' as ViolationLevel, description: '作業中未戴安全帽或反光背心' },
+      { name: '2. 非作業車輛違規停放於【裝卸作業區】或【妨礙裝卸作業位置】或【影響交通安全(如紅線、港區道路轉彎處等)】等處', level: '輕微' as ViolationLevel, description: '非作業車輛違規停放於【裝卸作業區】或【妨礙裝卸作業位置】或【影響交通安全(如紅線、港區道路轉彎處等)】等處' },
+      { name: '3. 非作業人員進入裝卸作業區', level: '輕微' as ViolationLevel, description: '非作業人員進入裝卸作業區' },
+      { name: '4. 棄置廢棄物', level: '輕微' as ViolationLevel, description: '棄置廢棄物' },
+      { name: '5. 作業後未清潔現場', level: '輕微' as ViolationLevel, description: '作業後未清潔現場' },
+      { name: '6. 未落實環保防制措施(如未設置防塵網、未經洗車池、隨意在港區清理車斗等)', level: '輕微' as ViolationLevel, description: '未落實環保防制措施(如未設置防塵網、未經洗車池、隨意在港區清理車斗等)' },
+      { name: '7. 載貨掉落致危害', level: '輕微' as ViolationLevel, description: '載貨掉落致危害' },
+      { name: '8. 機具/車輛未適時開燈具', level: '輕微' as ViolationLevel, description: '機具/車輛未適時開燈具' },
+      { name: '9. 未事先申請進港或進倉裝卸作業', level: '輕微' as ViolationLevel, description: '未事先申請進港或進倉裝卸作業' },
     ];
 
     for (const item of defaults) {
-      if (!violationTypes.some(t => t.name === item.name)) {
+      const nameWithoutNumber = item.name.replace(/^\d+\.\s*/, '');
+      const existing = violationTypes.find(t => 
+        t.name === item.name || 
+        t.name === nameWithoutNumber ||
+        t.name.replace(/^\d+\.\s*/, '') === nameWithoutNumber
+      );
+
+      if (!existing) {
         await addRecord('violationTypes', item);
+      } else if (existing.level !== item.level || existing.name !== item.name) {
+        await updateRecord('violationTypes', existing.id, { 
+          name: item.name,
+          level: item.level as ViolationLevel 
+        });
       }
     }
-  }, [violationTypes, addRecord]);
+  }, [violationTypes, addRecord, updateRecord]);
 
   useEffect(() => {
-    if (!loading && user && violationTypes.length === 0) {
-      handleInitializeDefaults();
+    if (!loading && user) {
+      // 如果完全沒有資料，或者沒有任何「輕微」類型的違規態樣，就執行初始化
+      const hasMinor = violationTypes.some(t => t.level === '輕微');
+      if (violationTypes.length === 0 || (violationTypes.length > 0 && !hasMinor)) {
+        handleInitializeDefaults();
+      }
     }
   }, [violationTypes, loading, user, handleInitializeDefaults]);
 
