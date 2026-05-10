@@ -29,60 +29,78 @@ export function useData() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let counts = 0;
+    const TOTAL_STREAMS = 5;
+    const checkDone = () => {
+      counts++;
+      if (counts === TOTAL_STREAMS) setLoading(false);
+    };
+
+    // Public collections
+    const unsubCompanies = onSnapshot(collection(db, 'companies'), (snapshot) => {
+      setCompanies(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Company)));
+      checkDone();
+    }, (err) => { handleFirestoreError(err, OperationType.LIST, 'companies'); checkDone(); });
+
+    const unsubTypes = onSnapshot(collection(db, 'violationTypes'), (snapshot) => {
+      setViolationTypes(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ViolationType)));
+      checkDone();
+    }, (err) => { handleFirestoreError(err, OperationType.LIST, 'violationTypes'); checkDone(); });
+
+    // Auth-dependent collections
+    let unsubViolations = () => {};
+    let unsubSuspensions = () => {};
+    let unsubAppeals = () => {};
+
     const unsubAuth = auth.onAuthStateChanged((user) => {
       if (!user) {
-        setCompanies([]);
-        setViolationTypes([]);
         setViolations([]);
         setSuspensions([]);
         setAppeals([]);
-        setLoading(false);
+        // Even if not logged in, we mark these as "done" for loading state purposes
+        if (counts < TOTAL_STREAMS) {
+           // If we're still in the initial loading phase, and no user, 
+           // we just mark them as empty but finished
+           if (counts < 2) { /* companies and types might still be loading */ }
+           // Special case: if no user, we still need to finish the loading
+           // But since we want to wait for companies/types, we can't just call checkDone 3 times here
+        }
         return;
       }
 
-      setLoading(true);
-
-      let counts = 0;
-      const checkDone = () => {
-        counts++;
-        if (counts === 5) setLoading(false);
-      };
-
-      const unsubCompanies = onSnapshot(collection(db, 'companies'), (snapshot) => {
-        setCompanies(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Company)));
-        checkDone();
-      }, (err) => { handleFirestoreError(err, OperationType.LIST, 'companies'); checkDone(); });
-
-      const unsubTypes = onSnapshot(collection(db, 'violationTypes'), (snapshot) => {
-        setViolationTypes(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ViolationType)));
-        checkDone();
-      }, (err) => { handleFirestoreError(err, OperationType.LIST, 'violationTypes'); checkDone(); });
-
-      const unsubViolations = onSnapshot(query(collection(db, 'violations'), orderBy('date', 'desc')), (snapshot) => {
+      unsubViolations = onSnapshot(query(collection(db, 'violations'), orderBy('date', 'desc')), (snapshot) => {
         setViolations(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ViolationRecord)));
         checkDone();
       }, (err) => { handleFirestoreError(err, OperationType.LIST, 'violations'); checkDone(); });
 
-      const unsubSuspensions = onSnapshot(collection(db, 'suspensions'), (snapshot) => {
+      unsubSuspensions = onSnapshot(collection(db, 'suspensions'), (snapshot) => {
         setSuspensions(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SuspensionRecord)));
         checkDone();
       }, (err) => { handleFirestoreError(err, OperationType.LIST, 'suspensions'); checkDone(); });
 
-      const unsubAppeals = onSnapshot(collection(db, 'appeals'), (snapshot) => {
+      unsubAppeals = onSnapshot(collection(db, 'appeals'), (snapshot) => {
         setAppeals(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AppealRecord)));
         checkDone();
       }, (err) => { handleFirestoreError(err, OperationType.LIST, 'appeals'); checkDone(); });
-
-      return () => {
-        unsubCompanies();
-        unsubTypes();
-        unsubViolations();
-        unsubSuspensions();
-        unsubAppeals();
-      };
     });
 
-    return () => unsubAuth();
+    // If no user after a moment, we should still allow loading to finish for public data
+    const timeout = setTimeout(() => {
+      if (!auth.currentUser) {
+        // Mark auth collections as empty but finished
+        for(let i=0; i<3; i++) checkDone();
+      }
+    }, 2000);
+
+    return () => {
+      unsubCompanies();
+      unsubTypes();
+      unsubViolations();
+      unsubSuspensions();
+      unsubAppeals();
+      unsubAuth();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const addRecord = async (coll: string, data: Record<string, unknown>) => {

@@ -26,7 +26,7 @@ import {
   List
 } from 'lucide-react';
 
-import { logout, verifyPassword } from './lib/firebase';
+import { login, logout, verifyPassword } from './lib/firebase';
 import { useData } from './lib/useData';
 import { ViolationRecord, ViolationType, ViolationLevel, Attachment } from './types';
 import { exportViolationsToExcel } from './lib/export';
@@ -250,6 +250,43 @@ export default function App() {
     removeRecord 
   } = useData();
 
+  const sortByPrefixNumber = useCallback((a: string, b: string) => {
+    const aMatch = a.match(/^(\d+)/);
+    const bMatch = b.match(/^(\d+)/);
+    if (aMatch && bMatch) {
+      return parseInt(aMatch[1]) - parseInt(bMatch[1]);
+    }
+    return a.localeCompare(b, 'zh-TW');
+  }, []);
+
+  const groupedViolationTypes = useMemo(() => {
+    const order: ViolationLevel[] = ['極嚴重', '重大', '一般', '輕微'];
+    const groups: Record<ViolationLevel, ViolationType[]> = {
+      '極嚴重': [],
+      '重大': [],
+      '一般': [],
+      '輕微': []
+    };
+    
+    violationTypes.forEach(type => {
+      let level = type.level as string;
+      if (level.includes('極嚴重')) level = '極嚴重';
+      else if (level.includes('重大')) level = '重大';
+      else if (level.includes('一般')) level = '一般';
+      else if (level.includes('輕微')) level = '輕微';
+      
+      const targetLevel = level as ViolationLevel;
+      if (groups[targetLevel]) {
+        groups[targetLevel].push(type);
+      }
+    });
+
+    return order.map(level => ({
+      level,
+      types: groups[level].sort((a, b) => sortByPrefixNumber(a.name, b.name))
+    })).filter(group => group.types.length > 0);
+  }, [violationTypes, sortByPrefixNumber]);
+
   const handleInitializeDefaults = useCallback(async () => {
     const defaults = [
       // 極嚴重違規
@@ -306,9 +343,13 @@ export default function App() {
 
   useEffect(() => {
     if (!loading && user) {
-      // 如果完全沒有資料，或者沒有任何「輕微」類型的違規態樣，就執行初始化
-      const hasMinor = violationTypes.some(t => t.level === '輕微');
-      if (violationTypes.length === 0 || (violationTypes.length > 0 && !hasMinor)) {
+      // 確保至少有基本的預設值存在
+      const requiredKeywords = ['無裝卸許可證', '載重', '起重機具', '安全帽', '停放', '申請進港'];
+      const hasMissingKeywords = requiredKeywords.some(kw => 
+        !violationTypes.some(t => t.name.includes(kw))
+      );
+      
+      if (violationTypes.length === 0 || hasMissingKeywords) {
         handleInitializeDefaults();
       }
     }
@@ -317,11 +358,11 @@ export default function App() {
   useEffect(() => {
     const migrate = async () => {
       if (loading || !user || violationTypes.length === 0) return;
-      const needsMigration = violationTypes.some(t => t.level.includes('違規'));
+      const needsMigration = violationTypes.some(t => (t.level as string).includes('違規'));
       if (needsMigration) {
         for (const t of violationTypes) {
-          if (t.level.includes('違規')) {
-            const cleanLevel = t.level.replace('違規', '').trim() as ViolationLevel;
+          if ((t.level as string).includes('違規')) {
+            const cleanLevel = (t.level as string).replace('違規', '').trim() as ViolationLevel;
             await updateRecord('violationTypes', t.id, { level: cleanLevel });
           }
         }
@@ -399,6 +440,40 @@ export default function App() {
               {passwordLoading ? '驗證中...' : '進入系統'}
             </Button>
           </form>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200"></div>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-slate-400 font-bold tracking-widest">管理者登入</span>
+            </div>
+          </div>
+
+          <Button 
+            variant="secondary" 
+            className="w-full h-11 text-xs border-slate-200"
+            onClick={async () => {
+              try {
+                await login();
+                sessionStorage.setItem('port_auth', '1');
+                setUser(true);
+              } catch {
+                alert('登入失敗');
+              }
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              </svg>
+              使用 Google 登入
+            </div>
+          </Button>
+
           <p className="text-xs text-slate-300 font-bold uppercase tracking-widest mt-5 flex items-center justify-center gap-1">
             <span>🔒</span> 需要密碼才能存取
           </p>
@@ -1174,25 +1249,38 @@ export default function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {violationTypes.sort((a,b) => a.level.localeCompare(b.level)).map(type => (
-                <Card key={type.id} className="p-4 flex flex-col justify-between group">
-                  <div>
-                    <div className="flex items-start justify-between mb-2">
-                      <Badge className={getLevelColor(type.level)}>{type.level}</Badge>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" className="p-1 h-6 w-6" onClick={() => { setEditingConfig(type); setShowConfigModal(true); }}>
-                          <Edit3 className="w-3 h-3" />
-                        </Button>
-                        <Button variant="ghost" className="p-1 h-6 w-6 text-red-600" onClick={() => { if(confirm('確定要刪除此政策？')) removeRecord('violationTypes', type.id) }}>
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                    <h4 className="text-sm font-black uppercase tracking-tight mb-1">{type.name}</h4>
-                    <p className="text-[13px] text-slate-500 font-medium leading-relaxed line-clamp-3">{type.description}</p>
+            <div className="space-y-8">
+              {groupedViolationTypes.map(group => (
+                <div key={group.level} className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <h3 className={`text-base font-black px-4 py-1 rounded shadow-sm border whitespace-nowrap ${getLevelColor(group.level)}`}>
+                      {group.level} 違規態樣
+                    </h3>
+                    <div className="h-[2px] flex-1 bg-slate-100 rounded-full"></div>
                   </div>
-                </Card>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {group.types.map(type => (
+                      <Card key={type.id} className="p-4 flex flex-col justify-between group border-slate-200 hover:border-slate-300 transition-colors">
+                        <div>
+                          <div className="flex items-start justify-between mb-3 border-b border-slate-50 pb-2">
+                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{group.level}類</span>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" className="p-1 h-7 w-7" onClick={() => { setEditingConfig(type); setShowConfigModal(true); }}>
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button variant="ghost" className="p-1 h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => { if(confirm('確定要刪除此政策？')) removeRecord('violationTypes', type.id) }}>
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                          <h4 className="text-[15px] font-black text-slate-800 leading-tight mb-2">{type.name}</h4>
+                          <p className="text-[13px] text-slate-500 font-medium leading-relaxed line-clamp-3">{type.description}</p>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
             {violationTypes.length === 0 && (
@@ -1274,9 +1362,18 @@ export default function App() {
                 className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600" 
               >
                 <option value="">{formLevelFilter ? `-- 請選擇 ${formLevelFilter} 類別態樣 --` : "-- 請選擇違規態樣 --"}</option>
-                {violationTypes
-                  .filter(t => !formLevelFilter || t.level === formLevelFilter)
-                  .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {formLevelFilter ? (
+                  violationTypes
+                    .filter(t => t.level === formLevelFilter || (t.level as string).includes(formLevelFilter))
+                    .sort((a, b) => sortByPrefixNumber(a.name, b.name))
+                    .map(t => <option key={t.id} value={t.id}>{t.name}</option>)
+                ) : (
+                  groupedViolationTypes.map(group => (
+                    <optgroup key={group.level} label={`${group.level}類 違規態樣`}>
+                      {group.types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </optgroup>
+                  ))
+                )}
                 <option value="other">其他 (手動輸入)</option>
               </select>
             </div>
