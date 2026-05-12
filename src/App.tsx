@@ -268,7 +268,28 @@ export default function App() {
       '輕微': []
     };
     
-    violationTypes.forEach(type => {
+    // 用於過濾重複的文字內容（忽略前導數字）
+    const getCoreText = (name: string) => {
+      // 移除開頭的數字、點、空白，例如 "1. 無裝卸" -> "無裝卸"
+      return name.replace(/^(\d+[.\s]*)+/, '').trim();
+    };
+
+    const seenCoreTexts = new Set<string>();
+    
+    // 先排序，讓「不帶數字」的排在前面，這樣 seenCoreTexts 會先捕捉到它
+    const sortedForDedupe = [...violationTypes].sort((a, b) => {
+      const aHasNum = /^\d+/.test(a.name);
+      const bHasNum = /^\d+/.test(b.name);
+      if (aHasNum && !bHasNum) return 1;
+      if (!aHasNum && bHasNum) return -1;
+      return a.name.localeCompare(b.name, 'zh-TW');
+    });
+
+    sortedForDedupe.forEach(type => {
+      const coreText = getCoreText(type.name);
+      if (seenCoreTexts.has(coreText)) return;
+      seenCoreTexts.add(coreText);
+
       let level = type.level as string;
       if (level.includes('極嚴重')) level = '極嚴重';
       else if (level.includes('重大')) level = '重大';
@@ -290,53 +311,57 @@ export default function App() {
   const handleInitializeDefaults = useCallback(async () => {
     const defaults = [
       // 極嚴重違規
-      { name: '1. 無裝卸許可證', level: '極嚴重' as ViolationLevel, description: '無裝卸許可證' },
+      { name: '無裝卸許可證', level: '極嚴重' as ViolationLevel, description: '無裝卸許可證' },
       
       // 重大違規
-      { name: '1. 機具超過場地載重，且未外伸撐座或鋪設墊料', level: '重大' as ViolationLevel, description: '機具超過場地載重，且未外伸撐座或鋪設墊料' },
-      { name: '2. 貨物堆置超過場地載重限制', level: '重大' as ViolationLevel, description: '貨物堆置超過場地載重限制' },
-      { name: '3. 機具吊掛貨物超過荷重限制', level: '重大' as ViolationLevel, description: '機具吊掛貨物超過荷重限制(依相關主管機關判定裁處)' },
-      { name: '4. 堆高機操作超過荷重限制', level: '重大' as ViolationLevel, description: '堆高機操作超過荷重限制(依相關主管機關判定裁處)' },
+      { name: '機具超過場地載重，且未外伸撐座或鋪設墊料', level: '重大' as ViolationLevel, description: '機具超過場地載重，且未外伸撐座或鋪設墊料' },
+      { name: '貨物堆置超過場地載重限制', level: '重大' as ViolationLevel, description: '貨物堆置超過場地載重限制' },
+      { name: '機具吊掛貨物超過荷重限制', level: '重大' as ViolationLevel, description: '機具吊掛貨物超過荷重限制(依相關主管機關判定裁處)' },
+      { name: '堆高機操作超過荷重限制', level: '重大' as ViolationLevel, description: '堆高機操作超過荷重限制(依相關主管機關判定裁處)' },
       
       // 一般違規
-      { name: '1. 起重機具無防護措施承載或吊升人員作業', level: '一般' as ViolationLevel, description: '起重機具無防護措施承載或吊升人員作業' },
-      { name: '2. 吊掛或搬運作業未設立警示區', level: '一般' as ViolationLevel, description: '吊掛或搬運作業未設立警示區' },
-      { name: '3. 起重機具吊掛作業吊鉤或吊具無防脫落裝置', level: '一般' as ViolationLevel, description: '起重機具吊掛作業吊鉤或吊具無防脫落裝置' },
-      { name: '4. 堆高機無警示裝置或未開啟', level: '一般' as ViolationLevel, description: '堆高機無警示裝置或未開啟' },
-      { name: '5. 人員搭載於堆高機乘坐席以外(含托板等處)', level: '一般' as ViolationLevel, description: '人員搭載於堆高機乘坐席以外(含托板等處)' },
-      { name: '6. 吊掛作業無人員指揮', level: '一般' as ViolationLevel, description: '吊掛作業無人員指揮' },
-      { name: '7. 車輛機械搬運作業時無引導人員', level: '一般' as ViolationLevel, description: '車輛機械搬運作業時無引導人員' },
-      { name: '8. 未依指定區域堆(儲)放貨物或進行裝卸', level: '一般' as ViolationLevel, description: '未依指定區域堆(儲)放貨物或進行裝卸' },
-      { name: '9. 貨物滯留港區未事先申請', level: '一般' as ViolationLevel, description: '貨物滯留港區未事先申請' },
-      { name: '10. 堆高機超速', level: '一般' as ViolationLevel, description: '堆高機超速(依相關主管機關判定裁處)' },
+      { name: '起重機具無防護措施承載或吊升人員作業', level: '一般' as ViolationLevel, description: '起重機具無防護措施承載或吊升人員作業' },
+      { name: '吊掛或搬運作業未設立警示區', level: '一般' as ViolationLevel, description: '吊掛或搬運作業未設立警示區' },
+      { name: '起重機具吊掛作業吊鉤或吊具無防脫落裝置', level: '一般' as ViolationLevel, description: '起重機具吊掛作業吊鉤或吊具無防脫落裝置' },
+      { name: '堆高機無警示裝置或未開啟', level: '一般' as ViolationLevel, description: '堆高機無警示裝置或未開啟' },
+      { name: '人員搭載於堆高機乘坐席以外(含托板等處)', level: '一般' as ViolationLevel, description: '人員搭載於堆高機乘坐席以外(含托板等處)' },
+      { name: '吊掛作業無人員指揮', level: '一般' as ViolationLevel, description: '吊掛作業無人員指揮' },
+      { name: '車輛機械搬運作業時無引導人員', level: '一般' as ViolationLevel, description: '車輛機械搬運作業時無引導人員' },
+      { name: '未依指定區域堆(儲)放貨物或進行裝卸', level: '一般' as ViolationLevel, description: '未依指定區域堆(儲)放貨物或進行裝卸' },
+      { name: '貨物滯留港區未事先申請', level: '一般' as ViolationLevel, description: '貨物滯留港區未事先申請' },
+      { name: '堆高機超速', level: '一般' as ViolationLevel, description: '堆高機超速(依相關主管機關判定裁處)' },
       
       // 輕微違規
-      { name: '1. 作業中未戴安全帽或反光背心', level: '輕微' as ViolationLevel, description: '作業中未戴安全帽或反光背心' },
-      { name: '2. 非作業車輛違規停放於【裝卸作業區】或【妨礙裝卸作業位置】或【影響交通安全(如紅線、港區道路轉彎處等)】等處', level: '輕微' as ViolationLevel, description: '非作業車輛違規停放於【裝卸作業區】或【妨礙裝卸作業位置】或【影響交通安全(如紅線、港區道路轉彎處等)】等處' },
-      { name: '3. 非作業人員進入裝卸作業區', level: '輕微' as ViolationLevel, description: '非作業人員進入裝卸作業區' },
-      { name: '4. 棄置廢棄物', level: '輕微' as ViolationLevel, description: '棄置廢棄物' },
-      { name: '5. 作業後未清潔現場', level: '輕微' as ViolationLevel, description: '作業後未清潔現場' },
-      { name: '6. 未落實環保防制措施(如未設置防塵網、未經洗車池、隨意在港區清理車斗等)', level: '輕微' as ViolationLevel, description: '未落實環保防制措施(如未設置防塵網、未經洗車池、隨意在港區清理車斗等)' },
-      { name: '7. 載貨掉落致危害', level: '輕微' as ViolationLevel, description: '載貨掉落致危害' },
-      { name: '8. 機具/車輛未適時開燈具', level: '輕微' as ViolationLevel, description: '機具/車輛未適時開燈具' },
-      { name: '9. 未事先申請進港或進倉裝卸作業', level: '輕微' as ViolationLevel, description: '未事先申請進港或進倉裝卸作業' },
+      { name: '作業中未戴安全帽或反光背心', level: '輕微' as ViolationLevel, description: '作業中未戴安全帽或反光背心' },
+      { name: '非作業車輛違規停放於【裝卸作業區】或【妨礙裝卸作業位置】或【影響交通安全(如紅線、港區道路轉彎處等)】等處', level: '輕微' as ViolationLevel, description: '非作業車輛違規停放於【裝卸作業區】或【妨礙裝卸作業位置】或【影響交通安全(如紅線、港區道路轉彎處等)】等處' },
+      { name: '非作業人員進入裝卸作業區', level: '輕微' as ViolationLevel, description: '非作業人員進入裝卸作業區' },
+      { name: '棄置廢棄物', level: '輕微' as ViolationLevel, description: '棄置廢棄物' },
+      { name: '作業後未清潔現場', level: '輕微' as ViolationLevel, description: '作業後未清潔現場' },
+      { name: '未落實環保防制措施(如未設置防塵網、未經洗車池、隨意在港區清理車斗等)', level: '輕微' as ViolationLevel, description: '未落實環保防制措施(如未設置防塵網、未經洗車池、隨意在港區清理車斗等)' },
+      { name: '載貨掉落致危害', level: '輕微' as ViolationLevel, description: '載貨掉落致危害' },
+      { name: '機具/車輛未適時開燈具', level: '輕微' as ViolationLevel, description: '機具/車輛未適時開燈具' },
+      { name: '未事先申請進港或進倉裝卸作業', level: '輕微' as ViolationLevel, description: '未事先申請進港或進倉裝卸作業' },
     ];
 
+    const getCoreText = (name: string) => name.replace(/^(\d+[.\s]*)+/, '').trim();
+
     for (const item of defaults) {
-      const nameWithoutNumber = item.name.replace(/^\d+\.\s*/, '');
+      const coreText = getCoreText(item.name);
+      
       const existing = violationTypes.find(t => 
-        t.name === item.name || 
-        t.name === nameWithoutNumber ||
-        t.name.replace(/^\d+\.\s*/, '') === nameWithoutNumber
+        getCoreText(t.name) === coreText
       );
 
       if (!existing) {
-        await addRecord('violationTypes', item);
-      } else if (existing.level !== item.level || existing.name !== item.name) {
-        await updateRecord('violationTypes', existing.id, { 
-          name: item.name,
-          level: item.level as ViolationLevel 
-        });
+        await addRecord('violationTypes', { ...item, createdAt: serverTimestamp() });
+      } else {
+        // 如果已存在但名字不同（例如帶有數字），則更新為不帶數字的版本
+        if (existing.name !== coreText || existing.level !== item.level) {
+          await updateRecord('violationTypes', existing.id, { 
+            name: coreText,
+            level: item.level as ViolationLevel 
+          });
+        }
       }
     }
   }, [violationTypes, addRecord, updateRecord]);
@@ -358,6 +383,8 @@ export default function App() {
   useEffect(() => {
     const migrate = async () => {
       if (loading || !user || violationTypes.length === 0) return;
+      
+      // 1. 修正層級名稱 (例如 "輕微違規" -> "輕微")
       const needsMigration = violationTypes.some(t => (t.level as string).includes('違規'));
       if (needsMigration) {
         for (const t of violationTypes) {
@@ -367,9 +394,38 @@ export default function App() {
           }
         }
       }
+
+      // 2. 清除資料庫中的重複態樣（文字內容相同，保留無數字編號者）
+      const getCoreText = (name: string) => name.replace(/^(\d+[.\s]*)+/, '').trim();
+      
+      const groupsByCoreText: Record<string, ViolationType[]> = {};
+      violationTypes.forEach(t => {
+        const core = getCoreText(t.name);
+        if (!groupsByCoreText[core]) groupsByCoreText[core] = [];
+        groupsByCoreText[core].push(t);
+      });
+
+      for (const core in groupsByCoreText) {
+        const instances = groupsByCoreText[core];
+        if (instances.length > 1) {
+          // 找出「最好的」那個：沒有數字開頭的，或者是第一個
+          const best = instances.find(inst => !/^\d+/.test(inst.name)) || instances[0];
+          
+          // 如果 best 的名字還是帶有數字，但有 core text 需求，可以在這裡進一步修正名字
+          if (/^\d+/.test(best.name)) {
+             await updateRecord('violationTypes', best.id, { name: core });
+          }
+
+          for (const inst of instances) {
+            if (inst.id !== best.id) {
+              await removeRecord('violationTypes', inst.id);
+            }
+          }
+        }
+      }
     };
     migrate();
-  }, [violationTypes, loading, user, updateRecord]);
+  }, [violationTypes, loading, user, updateRecord, removeRecord]);
 
 
   useEffect(() => {
