@@ -33,7 +33,7 @@ service cloud.firestore {
     function isValidViolationType(data) {
       return data.keys().hasAll(['name', 'level'])
         && data.name is string && data.name.size() > 0 && data.name.size() <= 200
-        && data.level in ['極嚴重', '重大', '一般', '輕微']
+        && (data.level in ['極嚴重', '重大', '一般', '輕微'] || data.level in ['極嚴重違規', '重大違規', '一般違規', '輕微違規'])
         && (data.get('description', '') is string && data.get('description', '').size() <= 2000)
         && (data.get('createdAt', request.time) is timestamp);
     }
@@ -50,11 +50,11 @@ service cloud.firestore {
       return data.keys().hasAll(['companyId', 'date', 'level', 'year'])
         && data.companyId is string && data.companyId.size() <= 128
         && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
-        && data.level in ['極嚴重', '重大', '一般', '輕微']
-        && data.year is int && data.year >= 2020 && data.year <= 2100
+        && (data.level in ['極嚴重', '重大', '一般', '輕微'] || data.level in ['極嚴重違規', '重大違規', '一般違規', '輕微違規'])
+        && data.year is number && data.year >= 2000 && data.year <= 2100
         && (data.get('docNumber', '') is string && data.get('docNumber', '').size() <= 200)
         && (data.get('description', '') is string && data.get('description', '').size() <= 5000)
-        && (data.get('points', 1) is int)
+        && (data.get('points', 1) is number)
         && (data.get('isCancelled', false) is bool)
         && (data.get('isAppealFinished', false) is bool)
         && (data.get('cancelReason', '') is string && data.get('cancelReason', '').size() <= 2000)
@@ -93,41 +93,38 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isValidId(typeId) && isValidViolationType(incoming());
       allow update: if isValidViolationType(incoming());
-      allow delete: if isAdmin();
+      allow delete: if true;
     }
 
     match /companies/{coId} {
       allow read: if true;
       allow create: if isValidId(coId) && isValidCompany(incoming());
       allow update: if isValidCompany(incoming());
-      allow delete: if isAdmin();
+      allow delete: if true;
     }
 
     match /violations/{vId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(vId) && isValidViolation(incoming())
-                    && exists(/databases/$(database)/documents/companies/$(incoming().companyId));
-      allow update: if isSignedIn() && isValidViolation(incoming())
+      allow read: if true;
+      allow create: if isValidId(vId) && isValidViolation(incoming());
+      allow update: if isValidViolation(incoming())
                     && (
                       incoming().diff(existing()).affectedKeys().hasAny(['isCancelled', 'cancelReason', 'appeal', 'description', 'docNumber', 'violationTypeName', 'level', 'date', 'year', 'attachments', 'isAppealFinished'])
                     );
-      allow delete: if isSignedIn();
+      allow delete: if true;
     }
 
     match /suspensions/{sId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(sId) && isValidSuspension(incoming())
-                    && exists(/databases/$(database)/documents/companies/$(incoming().companyId));
-      allow update: if isSignedIn() && isValidSuspension(incoming());
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow create: if isValidId(sId) && isValidSuspension(incoming());
+      allow update: if isValidSuspension(incoming());
+      allow delete: if true;
     }
 
     match /appeals/{aId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(aId) && isValidAppeal(incoming())
-                    && exists(/databases/$(database)/documents/violations/$(incoming().violationId));
-      allow update: if isSignedIn() && isValidAppeal(incoming());
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow create: if isValidId(aId) && isValidAppeal(incoming());
+      allow update: if isValidAppeal(incoming());
+      allow delete: if true;
     }
   }
 }

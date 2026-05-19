@@ -117,9 +117,7 @@ const Modal = ({ isOpen, onClose, title, children, maxWidth = "max-w-xl" }: { is
   );
 };
 
-const FileUploader = ({ onFileSelect, existingFiles = [] }: { onFileSelect: (files: Attachment[]) => void, existingFiles?: Attachment[] }) => {
-  const [files, setFiles] = useState<Attachment[]>(existingFiles);
-
+const FileUploader = ({ onFileSelect, files = [] }: { onFileSelect: React.Dispatch<React.SetStateAction<Attachment[]>>, files: Attachment[] }) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     if (!selectedFiles) return;
@@ -132,22 +130,14 @@ const FileUploader = ({ onFileSelect, existingFiles = [] }: { onFileSelect: (fil
           data: event.target?.result as string,
           type: file.type
         };
-        setFiles(prev => {
-          const updated = [...prev, newFile];
-          onFileSelect(updated);
-          return updated;
-        });
+        onFileSelect(prev => [...prev, newFile]);
       };
       reader.readAsDataURL(file);
     });
   };
 
   const removeFile = (index: number) => {
-    setFiles(prev => {
-      const updated = prev.filter((_, i) => i !== index);
-      onFileSelect(updated);
-      return updated;
-    });
+    onFileSelect(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -167,11 +157,7 @@ const FileUploader = ({ onFileSelect, existingFiles = [] }: { onFileSelect: (fil
                   data: event.target?.result as string,
                   type: file.type
                 };
-                setFiles(prev => {
-                  const updated = [...prev, newFile];
-                  onFileSelect(updated);
-                  return updated;
-                });
+                onFileSelect(prev => [...prev, newFile]);
               };
               reader.readAsDataURL(file);
             });
@@ -782,7 +768,7 @@ export default function App() {
           <div className="flex items-center gap-2">
              {/* Year Selector */}
              <div className="flex bg-slate-100 rounded p-0.5">
-                {[2025, 2024, 2023].map(y => (
+                {[2026, 2025, 2024, 2023].map(y => (
                   <button 
                     key={y}
                     onClick={() => setViewYear(y)}
@@ -1115,7 +1101,7 @@ export default function App() {
                     )}
                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest">年度週期:</p>
                     <div className="flex bg-slate-200 rounded p-0.5">
-                      {[2025, 2024, 2023].map(year => (
+                      {[2026, 2025, 2024, 2023].map(year => (
                         <button 
                           key={year}
                           onClick={() => setViewYear(year)}
@@ -1469,7 +1455,7 @@ export default function App() {
             <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">上傳檢附附件 (可拖曳上傳)</label>
             <FileUploader 
               onFileSelect={setFormAttachments} 
-              existingFiles={editingViolation?.attachments || []} 
+              files={formAttachments} 
             />
           </div>
 
@@ -1663,7 +1649,7 @@ export default function App() {
 
           <div>
             <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">上傳申訴證明附件</label>
-            <FileUploader onFileSelect={setAppealAttachments} existingFiles={appealAttachments} />
+            <FileUploader onFileSelect={setAppealAttachments} files={appealAttachments} />
           </div>
 
           <div className="flex gap-3 pt-2">

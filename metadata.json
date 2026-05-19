@@ -2,5 +2,7 @@
   "name": "港區違規管理系統",
   "description": "一套專為港區設計的違規紀錄與管理系統。包含違規態樣紀錄、累計計點通知、通行證扣押管理、申訴機制以及年度歷史資料封存功能。",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
