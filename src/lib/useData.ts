@@ -47,42 +47,30 @@ export function useData() {
       checkDone();
     }, (err) => { handleFirestoreError(err, OperationType.LIST, 'violationTypes'); checkDone(); });
 
-    // Auth-dependent collections
-    let unsubViolations = () => {};
-    let unsubSuspensions = () => {};
-    let unsubAppeals = () => {};
-
-    const unsubAuth = auth.onAuthStateChanged((user) => {
-      if (!user) {
-        setViolations([]);
-        setSuspensions([]);
-        setAppeals([]);
-        // Even if not logged in, we mark these as "done" for loading state purposes
-        if (counts < TOTAL_STREAMS) {
-           // If we're still in the initial loading phase, and no user, 
-           // we just mark them as empty but finished
-           if (counts < 2) { /* companies and types might still be loading */ }
-           // Special case: if no user, we still need to finish the loading
-           // But since we want to wait for companies/types, we can't just call checkDone 3 times here
-        }
-        return;
-      }
-
-      unsubViolations = onSnapshot(query(collection(db, 'violations'), orderBy('date', 'desc')), (snapshot) => {
-        setViolations(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ViolationRecord)));
-        checkDone();
-      }, (err) => { handleFirestoreError(err, OperationType.LIST, 'violations'); checkDone(); });
-
-      unsubSuspensions = onSnapshot(collection(db, 'suspensions'), (snapshot) => {
-        setSuspensions(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SuspensionRecord)));
-        checkDone();
-      }, (err) => { handleFirestoreError(err, OperationType.LIST, 'suspensions'); checkDone(); });
-
-      unsubAppeals = onSnapshot(collection(db, 'appeals'), (snapshot) => {
-        setAppeals(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AppealRecord)));
-        checkDone();
-      }, (err) => { handleFirestoreError(err, OperationType.LIST, 'appeals'); checkDone(); });
+    const unsubAuth = auth.onAuthStateChanged(() => {
+      // We don't clear data on logout because rules allow public read
+      // This ensures password-only users can see data too.
     });
+
+    const unsubViolations = onSnapshot(query(collection(db, 'violations'), orderBy('date', 'desc')), (snapshot) => {
+      setViolations(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ViolationRecord)));
+      checkDone();
+    }, (err) => { handleFirestoreError(err, OperationType.LIST, 'violations'); checkDone(); });
+
+    const unsubSuspensions = onSnapshot(collection(db, 'suspensions'), (snapshot) => {
+      setSuspensions(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SuspensionRecord)));
+      checkDone();
+    }, (err) => { handleFirestoreError(err, OperationType.LIST, 'suspensions'); checkDone(); });
+
+    const unsubAppeals = onSnapshot(collection(db, 'appeals'), (snapshot) => {
+      setAppeals(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AppealRecord)));
+      checkDone();
+    }, (err) => { handleFirestoreError(err, OperationType.LIST, 'appeals'); checkDone(); });
+
+    // Mark as done even if snapshots error out (handled by handleFirestoreError)
+    
+    // Auth-dependent collections (currently none are auth-dependent for list, but in future they might)
+
 
     // If no user after a moment, we should still allow loading to finish for public data
     const timeout = setTimeout(() => {

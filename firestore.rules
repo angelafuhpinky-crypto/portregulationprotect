@@ -51,10 +51,10 @@ service cloud.firestore {
         && data.companyId is string && data.companyId.size() <= 128
         && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
         && (data.level in ['極嚴重', '重大', '一般', '輕微'] || data.level in ['極嚴重違規', '重大違規', '一般違規', '輕微違規'])
-        && data.year is number && data.year >= 2000 && data.year <= 2100
+        && data.year is int && data.year >= 2000 && data.year <= 2100
         && (data.get('docNumber', '') is string && data.get('docNumber', '').size() <= 200)
         && (data.get('description', '') is string && data.get('description', '').size() <= 5000)
-        && (data.get('points', 1) is number)
+        && (data.get('points', 1) is int)
         && (data.get('isCancelled', false) is bool)
         && (data.get('isAppealFinished', false) is bool)
         && (data.get('cancelReason', '') is string && data.get('cancelReason', '').size() <= 2000)

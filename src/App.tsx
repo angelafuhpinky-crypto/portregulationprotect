@@ -536,68 +536,78 @@ export default function App() {
 
     if (!companyName || !date) return;
 
-    // Find or create company
-    const existingCo = companies.find(c => c.name === companyName);
-    const coId = existingCo 
-      ? existingCo.id 
-      : await addRecord('companies', { name: companyName }) as string;
+    try {
+      // Find or create company
+      const existingCo = companies.find(c => c.name === companyName);
+      const coId = existingCo 
+        ? existingCo.id 
+        : await addRecord('companies', { name: companyName }) as string;
 
-    const vType = violationTypes.find(t => t.id === typeId);
-    
-    const record: Partial<ViolationRecord> = {
-      companyId: coId,
-      violationTypeId: typeId || 'other',
-      violationTypeName: otherType || vType?.name || '未知',
-      level: (vType?.level || formData.get('level') || '一般') as ViolationLevel,
-      date,
-      year: new Date(date).getFullYear(),
-      docNumber: docNo,
-      description: desc,
-      points: 1,
-      isCancelled: false,
-      attachments: formAttachments,
-    };
+      const vType = violationTypes.find(t => t.id === typeId);
+      
+      const record: Partial<ViolationRecord> = {
+        companyId: coId,
+        violationTypeId: typeId || 'other',
+        violationTypeName: otherType || vType?.name || '未知',
+        level: (vType?.level || formData.get('level') || '一般') as ViolationLevel,
+        date,
+        year: parseInt(date.split('-')[0]), // Safe year extraction
+        docNumber: docNo,
+        description: desc,
+        points: 1,
+        isCancelled: false,
+        attachments: formAttachments,
+      };
 
-    if (editingViolation) {
-      await updateRecord('violations', editingViolation.id, record);
-    } else {
-      await addRecord('violations', record);
+      if (editingViolation) {
+        await updateRecord('violations', editingViolation.id, record);
+      } else {
+        await addRecord('violations', record);
+      }
+      
+      setShowViolationModal(false);
+      setEditingViolation(null);
+      setFormAttachments([]);
+      setFormLevelFilter("");
+    } catch (err) {
+      console.error(err);
+      alert('儲存案件失敗：' + (err instanceof Error ? err.message : '未知錯誤'));
     }
-    
-    setShowViolationModal(false);
-    setEditingViolation(null);
-    setFormAttachments([]);
-    setFormLevelFilter("");
   };
 
   const handleAddAppeal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedViolationForDetail) return;
 
-    if (editingAppeal) {
-      await updateRecord('appeals', editingAppeal.id, {
-        description: appealDescription,
-        attachments: appealAttachments,
-      });
-    } else {
-      const appealData = {
-        violationId: selectedViolationForDetail.id,
-        date: new Date().toISOString().split('T')[0],
-        description: appealDescription,
-        attachments: appealAttachments,
-      };
-      await addRecord('appeals', appealData);
+    try {
+      if (editingAppeal) {
+        await updateRecord('appeals', editingAppeal.id, {
+          description: appealDescription,
+          attachments: appealAttachments,
+        });
+      } else {
+        const appealData = {
+          violationId: selectedViolationForDetail.id,
+          date: new Date().toISOString().split('T')[0],
+          description: appealDescription,
+          attachments: appealAttachments,
+        };
+        await addRecord('appeals', appealData);
+        
+        // Update violation to show it has an appeal (not finished yet)
+        await updateRecord('violations', selectedViolationForDetail.id, {
+          isAppealFinished: false
+        });
+      }
       
-      // Update violation to show it has an appeal (not finished yet)
-      await updateRecord('violations', selectedViolationForDetail.id, {
-        isAppealFinished: false
-      });
+      setShowAppealModal(false);
+      setAppealDescription("");
+      setAppealAttachments([]);
+      setEditingAppeal(null);
+    } catch (err) {
+      console.error(err);
+      alert('儲存申訴失敗：' + (err instanceof Error ? err.message : '未知錯誤'));
     }
-    
-    setShowAppealModal(false);
-    setAppealDescription("");
-    setAppealAttachments([]);
-    setEditingAppeal(null);
   };
 
   const handleAddConfig = async (e: React.FormEvent<HTMLFormElement>) => {
