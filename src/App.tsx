@@ -569,6 +569,12 @@ export default function App() {
       setEditingViolation(null);
       setFormAttachments([]);
       setFormLevelFilter("");
+      setSelectedTypeId("");
+      setOtherTypeName("");
+      
+      // Return to main dashboard/panel
+      setSelectedCompanyId(null);
+      setActiveTab('dashboard');
     } catch (err) {
       console.error(err);
       alert('儲存案件失敗：' + (err instanceof Error ? err.message : '未知錯誤'));
