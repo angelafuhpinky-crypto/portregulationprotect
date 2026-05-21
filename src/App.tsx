@@ -951,6 +951,25 @@ export default function App() {
                         <span className="flex items-center gap-1"><Building2 className="w-4 h-4" /> 業者類型: {stat.company.businessType || '----'}</span>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="danger"
+                        className="h-9 text-xs px-3 font-bold flex items-center gap-2"
+                        onClick={async () => {
+                          if (confirm(`確定要刪除「${stat.company.name}」嗎？此動作將會刪除該業者及其相關紀錄，且無法復原！`)) {
+                            try {
+                              setSelectedCompanyId(null);
+                              await removeRecord('companies', stat.company.id);
+                            } catch (err) {
+                              console.error(err);
+                              alert('刪除業者失敗：' + (err instanceof Error ? err.message : '未知錯誤'));
+                            }
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" /> 刪除業者
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
