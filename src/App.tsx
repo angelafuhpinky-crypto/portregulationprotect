@@ -23,7 +23,8 @@ import {
   MessageSquare,
   ExternalLink,
   PieChart,
-  List
+  List,
+  Eye
 } from 'lucide-react';
 
 import { login, logout, verifyPassword } from './lib/firebase';
@@ -196,7 +197,14 @@ const FileUploader = ({ onFileSelect, files = [] }: { onFileSelect: React.Dispat
 // --- Main App ---
 
 export default function App() {
-  const [user, setUser] = useState<boolean>(() => sessionStorage.getItem('port_auth') === '1');
+  const [user, setUser] = useState<boolean>(() => !!sessionStorage.getItem('port_auth'));
+  const [userRole, setUserRole] = useState<'admin' | 'guest' | null>(() => {
+    const authVal = sessionStorage.getItem('port_auth');
+    if (authVal === 'admin') return 'admin';
+    if (authVal === 'guest') return 'guest';
+    if (authVal === '1') return 'admin'; // backward compatibility
+    return null;
+  });
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -353,7 +361,7 @@ export default function App() {
   }, [violationTypes, addRecord, updateRecord]);
 
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user && userRole === 'admin') {
       // 確保至少有基本的預設值存在
       const requiredKeywords = ['無裝卸許可證', '載重', '起重機具', '安全帽', '停放', '申請進港'];
       const hasMissingKeywords = requiredKeywords.some(kw => 
@@ -364,11 +372,11 @@ export default function App() {
         handleInitializeDefaults();
       }
     }
-  }, [violationTypes, loading, user, handleInitializeDefaults]);
+  }, [violationTypes, loading, user, userRole, handleInitializeDefaults]);
 
   useEffect(() => {
     const migrate = async () => {
-      if (loading || !user || violationTypes.length === 0) return;
+      if (loading || !user || userRole !== 'admin' || violationTypes.length === 0) return;
       
       // 1. 修正層級名稱 (例如 "輕微違規" -> "輕微")
       const needsMigration = violationTypes.some(t => (t.level as string).includes('違規'));
@@ -411,7 +419,7 @@ export default function App() {
       }
     };
     migrate();
-  }, [violationTypes, loading, user, updateRecord, removeRecord]);
+  }, [violationTypes, loading, user, userRole, updateRecord, removeRecord]);
 
 
   useEffect(() => {
@@ -444,10 +452,21 @@ export default function App() {
     if (!passwordInput.trim()) return;
     setPasswordLoading(true);
     setPasswordError('');
+
+    // Check if guest input guest password
+    if (passwordInput.trim().toLowerCase() === 'guest' || passwordInput.trim() === '訪客') {
+      setPasswordLoading(false);
+      sessionStorage.setItem('port_auth', 'guest');
+      setUserRole('guest');
+      setUser(true);
+      return;
+    }
+
     const ok = await verifyPassword(passwordInput.trim());
     setPasswordLoading(false);
     if (ok) {
-      sessionStorage.setItem('port_auth', '1');
+      sessionStorage.setItem('port_auth', 'admin');
+      setUserRole('admin');
       setUser(true);
     } else {
       setPasswordError('密碼錯誤，請再試一次');
@@ -463,7 +482,7 @@ export default function App() {
             <Shield className="w-8 h-8" />
           </div>
           <h1 className="text-xl font-black text-slate-900 mb-1 uppercase tracking-tight">港區違規管理系統</h1>
-          <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-7">請輸入系統存取密碼</p>
+          <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-7">請輸入密碼或選擇角色進入</p>
           <form onSubmit={handleLogin} className="space-y-3">
             {passwordError && (
               <p className="text-sm font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-md px-3 py-2">
@@ -474,21 +493,37 @@ export default function App() {
               type="password"
               value={passwordInput}
               onChange={e => setPasswordInput(e.target.value)}
-              placeholder="輸入密碼"
+              placeholder="輸入管理員密碼 (或訪客輸入 guest)"
               autoFocus
-              className="w-full bg-slate-50 border border-slate-200 rounded-md px-4 py-3 text-center text-base font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-port-blue focus:border-transparent"
+              className="w-full bg-slate-50 border border-slate-200 rounded-md px-4 py-3 text-center text-sm font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-port-blue focus:border-transparent animate-in fade-in"
             />
-            <Button type="submit" disabled={passwordLoading} className="w-full h-11 text-sm">
-              {passwordLoading ? '驗證中...' : '進入系統'}
+            <Button type="submit" disabled={passwordLoading} className="w-full h-11 text-xs uppercase tracking-widest font-black">
+              {passwordLoading ? '驗證中...' : '以管理員身份驗證登入'}
             </Button>
           </form>
+
+          {/* Quick guest entry button */}
+          <Button 
+            variant="outline" 
+            className="w-full h-11 text-xs border-slate-200 mt-2 text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-bold"
+            onClick={() => {
+              sessionStorage.setItem('port_auth', 'guest');
+              setUserRole('guest');
+              setUser(true);
+            }}
+          >
+            <div className="flex items-center gap-2 justify-center">
+              <Eye className="w-4 h-4 text-slate-400" />
+              以「訪客身份」免密碼進入 (唯讀)
+            </div>
+          </Button>
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-slate-200"></div>
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-slate-400 font-bold tracking-widest">管理者登入</span>
+              <span className="bg-white px-2 text-slate-400 font-bold tracking-widest">管理者免密聯動</span>
             </div>
           </div>
 
@@ -498,26 +533,27 @@ export default function App() {
             onClick={async () => {
               try {
                 await login();
-                sessionStorage.setItem('port_auth', '1');
+                sessionStorage.setItem('port_auth', 'admin');
+                setUserRole('admin');
                 setUser(true);
               } catch {
                 alert('登入失敗');
               }
             }}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 font-bold justify-center">
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                 <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z" />
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
               </svg>
-              使用 Google 登入
+              使用 Google 帳號授權登入 (管理員)
             </div>
           </Button>
 
-          <p className="text-xs text-slate-300 font-bold uppercase tracking-widest mt-5 flex items-center justify-center gap-1">
-            <span>🔒</span> 需要密碼才能存取
+          <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-5 flex items-center justify-center gap-1">
+            <span>🔒</span> 權限與操作稽核已成功啟用
           </p>
         </Card>
       </div>
@@ -741,12 +777,14 @@ export default function App() {
         <div className="mt-auto pt-4 border-t border-slate-800">
           <div className="px-3 mb-4">
             <p className="text-[13px] font-bold text-white uppercase tracking-wider truncate">
-              系統管理員
+              {userRole === 'admin' ? '系統管理員' : '訪客帳戶'}
             </p>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">系統管理員</p>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
+              {userRole === 'admin' ? '系統管理權限' : '單純查看權限'}
+            </p>
           </div>
           <button 
-            onClick={() => { sessionStorage.removeItem('port_auth'); setUser(false); logout(); }}
+            onClick={() => { sessionStorage.removeItem('port_auth'); setUser(false); setUserRole(null); logout(); }}
             className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm font-bold uppercase tracking-widest text-slate-400 hover:text-white hover:bg-slate-800 active:bg-slate-700 transition-[background-color,color] duration-100 select-none"
           >
             <LogOut className="w-4 h-4" />
@@ -794,9 +832,15 @@ export default function App() {
                   </button>
                 ))}
              </div>
-             <Button variant="primary" className="h-8 px-2 md:px-4 text-[11px] md:text-sm" onClick={() => { setFormLevelFilter(""); setShowViolationModal(true); }}>
-                <Plus className="w-4 h-4" /> <span className="hidden xs:inline">新增記錄</span>
-             </Button>
+             {userRole === 'admin' ? (
+               <Button variant="primary" className="h-8 px-2 md:px-4 text-[11px] md:text-sm" onClick={() => { setFormLevelFilter(""); setShowViolationModal(true); }}>
+                  <Plus className="w-4 h-4" /> <span className="hidden xs:inline">新增記錄</span>
+               </Button>
+             ) : (
+               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black text-amber-700 bg-amber-50 border border-amber-200 uppercase tracking-widest">
+                 <Eye className="w-3.5 h-3.5" /> 訪客唯讀模式
+               </span>
+             )}
           </div>
         </header>
 
@@ -957,25 +1001,27 @@ export default function App() {
                         <span className="flex items-center gap-1"><Building2 className="w-4 h-4" /> 業者類型: {stat.company.businessType || '----'}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="danger"
-                        className="h-9 text-xs px-3 font-bold flex items-center gap-2"
-                        onClick={async () => {
-                          if (confirm(`確定要刪除「${stat.company.name}」嗎？此動作將會刪除該業者及其相關紀錄，且無法復原！`)) {
-                            try {
-                              setSelectedCompanyId(null);
-                              await removeRecord('companies', stat.company.id);
-                            } catch (err) {
-                              console.error(err);
-                              alert('刪除業者失敗：' + (err instanceof Error ? err.message : '未知錯誤'));
+                    {userRole === 'admin' && (
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="danger"
+                          className="h-9 text-xs px-3 font-bold flex items-center gap-2"
+                          onClick={async () => {
+                            if (confirm(`確定要刪除「${stat.company.name}」嗎？此動作將會刪除該業者及其相關紀錄，且無法復原！`)) {
+                              try {
+                                setSelectedCompanyId(null);
+                                await removeRecord('companies', stat.company.id);
+                              } catch (err) {
+                                console.error(err);
+                                alert('刪除業者失敗：' + (err instanceof Error ? err.message : '未知錯誤'));
+                              }
                             }
-                          }
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" /> 刪除業者
-                      </Button>
-                    </div>
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" /> 刪除業者
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1049,34 +1095,36 @@ export default function App() {
                             </div>
                             
                             <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-2">
-                              <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                                <button 
-                                  onClick={() => {
-                                    setEditingViolation(v);
-                                    setFormLevelFilter(v.level);
-                                    setSelectedTypeId(v.violationTypeId || 'other');
-                                    setOtherTypeName(v.violationTypeId === 'other' ? v.violationTypeName : '');
-                                    setFormAttachments(v.attachments || []);
-                                    setShowViolationModal(true);
-                                  }}
-                                  className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
-                                >
-                                  <Edit3 className="w-4 h-4" />
-                                </button>
-                                <button 
-                                  onClick={() => {
-                                    if (confirm('確定要執行刪除？此動作無法復原。')) {
-                                      removeRecord('violations', v.id);
-                                    }
-                                  }}
-                                  className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                                <Button variant="secondary" className="p-1 h-7 w-14 text-sm" onClick={() => setShowCancelModal(v)}>
-                                  撤銷
-                                </Button>
-                              </div>
+                              {userRole === 'admin' && (
+                                <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                                  <button 
+                                    onClick={() => {
+                                      setEditingViolation(v);
+                                      setFormLevelFilter(v.level);
+                                      setSelectedTypeId(v.violationTypeId || 'other');
+                                      setOtherTypeName(v.violationTypeId === 'other' ? v.violationTypeName : '');
+                                      setFormAttachments(v.attachments || []);
+                                      setShowViolationModal(true);
+                                    }}
+                                    className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
+                                  >
+                                    <Edit3 className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      if (confirm('確定要執行刪除？此動作無法復原。')) {
+                                        removeRecord('violations', v.id);
+                                      }
+                                    }}
+                                    className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                  <Button variant="secondary" className="p-1 h-7 w-14 text-sm" onClick={() => setShowCancelModal(v)}>
+                                    撤銷
+                                  </Button>
+                                </div>
+                              )}
                               <div className="flex items-center gap-1 text-sm font-bold text-blue-600 uppercase tracking-widest md:mt-2">
                                 詳細資訊 <ChevronRight className="w-4 h-4" />
                               </div>
@@ -1174,33 +1222,37 @@ export default function App() {
                             {v.isCancelled ? <Badge className="bg-slate-200 text-slate-400">已撤銷</Badge> : <Badge className="bg-blue-600 text-white">正常累計</Badge>}
                           </td>
                           <td className="text-right flex justify-end gap-1">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingViolation(v);
-                                setFormLevelFilter(v.level);
-                                setSelectedTypeId(v.violationTypeId || 'other');
-                                setOtherTypeName(v.violationTypeId === 'other' ? v.violationTypeName : '');
-                                setFormAttachments(v.attachments || []);
-                                setShowViolationModal(true);
-                              }}
-                              className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
-                              title="編輯"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (confirm('確定要刪除此筆記錄？')) {
-                                  removeRecord('violations', v.id);
-                                }
-                              }}
-                              className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
-                              title="刪除"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {userRole === 'admin' && (
+                              <>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingViolation(v);
+                                    setFormLevelFilter(v.level);
+                                    setSelectedTypeId(v.violationTypeId || 'other');
+                                    setOtherTypeName(v.violationTypeId === 'other' ? v.violationTypeName : '');
+                                    setFormAttachments(v.attachments || []);
+                                    setShowViolationModal(true);
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
+                                  title="編輯"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm('確定要刪除此筆記錄？')) {
+                                      removeRecord('violations', v.id);
+                                    }
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                                  title="刪除"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
                             <Button variant="secondary" className="h-7 px-2 text-xs" onClick={() => setSelectedViolationForDetail(v)}>
                               案件詳情
                             </Button>
@@ -1261,9 +1313,11 @@ export default function App() {
                 <h2 className="text-[23px] font-black text-slate-900 uppercase tracking-tight">存取控制 (扣證管理)</h2>
                 <p className="text-[13px] font-bold text-slate-400 uppercase tracking-widest">目前執行中之各項限制管理清冊</p>
               </div>
-              <Button onClick={() => setShowSuspensionModal(true)}>
-                <Plus className="w-4 h-4" /> 新錄扣證紀錄
-              </Button>
+              {userRole === 'admin' && (
+                <Button onClick={() => setShowSuspensionModal(true)}>
+                  <Plus className="w-4 h-4" /> 新錄扣證紀錄
+                </Button>
+              )}
             </div>
 
             <Card className="overflow-x-auto">
@@ -1275,7 +1329,7 @@ export default function App() {
                       <th>結束日期</th>
                       <th>內部備註</th>
                       <th>執行狀態</th>
-                      <th></th>
+                      {userRole === 'admin' && <th></th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1293,11 +1347,13 @@ export default function App() {
                           <td>
                             {isActive ? <Badge className="bg-red-600 text-white">執行中</Badge> : <Badge className="bg-slate-200 text-slate-400">已到期</Badge>}
                           </td>
-                          <td className="text-right">
-                             <Button variant="ghost" className="p-1 h-7 w-7" onClick={() => { if(confirm('確定要刪除此筆記錄？')) removeRecord('suspensions', s.id) }}>
-                              <Trash2 className="w-4 h-4" />
-                             </Button>
-                          </td>
+                          {userRole === 'admin' && (
+                            <td className="text-right">
+                               <Button variant="ghost" className="p-1 h-7 w-7" onClick={() => { if(confirm('確定要刪除此筆記錄？')) removeRecord('suspensions', s.id) }}>
+                                <Trash2 className="w-4 h-4" />
+                               </Button>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -1316,14 +1372,16 @@ export default function App() {
                 <h2 className="text-[23px] font-black text-slate-900 uppercase tracking-tight">系統各項參數設定</h2>
                 <p className="text-[13px] font-bold text-slate-400 uppercase tracking-widest">權責政策與資料關聯配置</p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={handleInitializeDefaults}>
-                  初始化預設值
-                </Button>
-                <Button onClick={() => setShowConfigModal(true)}>
-                  <Plus className="w-4 h-4" /> 新增政策
-                </Button>
-              </div>
+              {userRole === 'admin' && (
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={handleInitializeDefaults}>
+                    初始化預設值
+                  </Button>
+                  <Button onClick={() => setShowConfigModal(true)}>
+                    <Plus className="w-4 h-4" /> 新增政策
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-8">
@@ -1342,14 +1400,16 @@ export default function App() {
                         <div>
                           <div className="flex items-start justify-between mb-3 border-b border-slate-50 pb-2">
                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{group.level}類</span>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button variant="ghost" className="p-1 h-7 w-7" onClick={() => { setEditingConfig(type); setShowConfigModal(true); }}>
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button variant="ghost" className="p-1 h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => { if(confirm('確定要刪除此政策？')) removeRecord('violationTypes', type.id) }}>
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
+                            {userRole === 'admin' && (
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" className="p-1 h-7 w-7" onClick={() => { setEditingConfig(type); setShowConfigModal(true); }}>
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button variant="ghost" className="p-1 h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => { if(confirm('確定要刪除此政策？')) removeRecord('violationTypes', type.id) }}>
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            )}
                           </div>
                           <h4 className="text-[15px] font-black text-slate-800 leading-tight mb-2">{type.name}</h4>
                           <p className="text-[13px] text-slate-500 font-medium leading-relaxed line-clamp-3">{type.description}</p>
@@ -1523,54 +1583,62 @@ export default function App() {
                   <span className="flex items-center gap-1"><FileText className="w-4 h-4" /> 字號: {selectedViolationForDetail.docNumber || '無'}</span>
                 </div>
               </div>
-              <div className="flex gap-2">
-                {showDeleteConfirm ? (
-                  <div className="flex bg-rose-50 border border-rose-100 rounded-lg overflow-hidden group">
-                    <button 
-                      onClick={async () => {
-                        await removeRecord('violations', selectedViolationForDetail.id);
-                        setSelectedViolationForDetail(null);
-                        setShowDeleteConfirm(false);
-                      }}
-                      className="px-3 py-1 bg-rose-500 text-white text-[13px] font-black uppercase tracking-widest hover:bg-rose-600 transition-colors"
-                    >
-                      確認刪除
-                    </button>
-                    <button 
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="px-3 py-1 bg-white text-stone-400 text-[13px] font-black uppercase tracking-widest hover:bg-stone-50 transition-colors"
-                    >
-                      取消
-                    </button>
-                  </div>
-                ) : (
-                  <Button variant="danger" className="h-8 px-3 text-sm font-black uppercase tracking-widest" onClick={() => setShowDeleteConfirm(true)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
-                <Button variant="secondary" className="h-8 px-4 text-sm font-black uppercase tracking-widest" onClick={() => { setEditingViolation(selectedViolationForDetail); setFormLevelFilter(selectedViolationForDetail.level); setShowViolationModal(true); setFormAttachments(selectedViolationForDetail.attachments || []); setSelectedViolationForDetail(null); }}>
-                  <Edit3 className="w-4 h-4 mr-1" /> 編輯資料
-                </Button>
-                {!selectedViolationForDetail.isAppealFinished ? (
-                  <>
-                    <Button variant="primary" className="h-8 px-4 text-sm font-black uppercase tracking-widest" onClick={() => { setEditingAppeal(null); setAppealDescription(""); setAppealAttachments([]); setShowAppealModal(true); }}>
-                      <MessageSquare className="w-4 h-4 mr-1" /> 新增申訴
+              {userRole === 'admin' ? (
+                <div className="flex gap-2">
+                  {showDeleteConfirm ? (
+                    <div className="flex bg-rose-50 border border-rose-100 rounded-lg overflow-hidden group">
+                      <button 
+                        onClick={async () => {
+                          await removeRecord('violations', selectedViolationForDetail.id);
+                          setSelectedViolationForDetail(null);
+                          setShowDeleteConfirm(false);
+                        }}
+                        className="px-3 py-1 bg-rose-500 text-white text-[13px] font-black uppercase tracking-widest hover:bg-rose-600 transition-colors"
+                      >
+                        確認刪除
+                      </button>
+                      <button 
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="px-3 py-1 bg-white text-stone-400 text-[13px] font-black uppercase tracking-widest hover:bg-stone-50 transition-colors"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  ) : (
+                    <Button variant="danger" className="h-8 px-3 text-sm font-black uppercase tracking-widest" onClick={() => setShowDeleteConfirm(true)}>
+                      <Trash2 className="w-4 h-4" />
                     </Button>
-                    {appeals.some(a => a.violationId === selectedViolationForDetail.id) && (
-                      <Button variant="success" className="h-8 px-4 text-sm font-black uppercase tracking-widest" onClick={async () => {
-                        await updateRecord('violations', selectedViolationForDetail.id, { isAppealFinished: true });
-                        setSelectedViolationForDetail(prev => prev ? { ...prev, isAppealFinished: true } : null);
-                      }}>
-                        <FileCheck className="w-4 h-4 mr-1" /> 結案申訴
+                  )}
+                  <Button variant="secondary" className="h-8 px-4 text-sm font-black uppercase tracking-widest" onClick={() => { setEditingViolation(selectedViolationForDetail); setFormLevelFilter(selectedViolationForDetail.level); setShowViolationModal(true); setFormAttachments(selectedViolationForDetail.attachments || []); setSelectedViolationForDetail(null); }}>
+                    <Edit3 className="w-4 h-4 mr-1" /> 編輯資料
+                  </Button>
+                  {!selectedViolationForDetail.isAppealFinished ? (
+                    <>
+                      <Button variant="primary" className="h-8 px-4 text-sm font-black uppercase tracking-widest" onClick={() => { setEditingAppeal(null); setAppealDescription(""); setAppealAttachments([]); setShowAppealModal(true); }}>
+                        <MessageSquare className="w-4 h-4 mr-1" /> 新增申訴
                       </Button>
-                    )}
-                  </>
-                ) : (
+                      {appeals.some(a => a.violationId === selectedViolationForDetail.id) && (
+                        <Button variant="success" className="h-8 px-4 text-sm font-black uppercase tracking-widest" onClick={async () => {
+                          await updateRecord('violations', selectedViolationForDetail.id, { isAppealFinished: true });
+                          setSelectedViolationForDetail(prev => prev ? { ...prev, isAppealFinished: true } : null);
+                        }}>
+                          <FileCheck className="w-4 h-4 mr-1" /> 結案申訴
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <Badge className="bg-blue-50 text-blue-500 border-blue-100 h-8 px-4 flex items-center gap-1">
+                      <FileCheck className="w-4 h-4" /> 申訴程序已結案
+                    </Badge>
+                  )}
+                </div>
+              ) : (
+                selectedViolationForDetail.isAppealFinished && (
                   <Badge className="bg-blue-50 text-blue-500 border-blue-100 h-8 px-4 flex items-center gap-1">
                     <FileCheck className="w-4 h-4" /> 申訴程序已結案
                   </Badge>
-                )}
-              </div>
+                )
+              )}
             </div>
 
             <div className="space-y-4">
@@ -1613,17 +1681,19 @@ export default function App() {
                         <div className="absolute left-[-5px] top-0 w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.1)]"></div>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{appeal.date} 提報申訴</span>
-                          <button 
-                            onClick={() => {
-                              setEditingAppeal(appeal);
-                              setAppealDescription(appeal.description);
-                              setAppealAttachments(appeal.attachments || []);
-                              setShowAppealModal(true);
-                            }}
-                            className="text-[13px] font-black text-port-blue hover:text-slate-600 uppercase tracking-widest transition-colors flex items-center gap-1"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" /> 編輯紀錄
-                          </button>
+                          {userRole === 'admin' && (
+                            <button 
+                              onClick={() => {
+                                setEditingAppeal(appeal);
+                                setAppealDescription(appeal.description);
+                                setAppealAttachments(appeal.attachments || []);
+                                setShowAppealModal(true);
+                              }}
+                              className="text-[13px] font-black text-port-blue hover:text-slate-600 uppercase tracking-widest transition-colors flex items-center gap-1"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" /> 編輯紀錄
+                            </button>
+                          )}
                         </div>
                         <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
                           <p className="text-[15px] font-medium text-slate-600 leading-relaxed mb-3 whitespace-pre-wrap">{appeal.description}</p>
