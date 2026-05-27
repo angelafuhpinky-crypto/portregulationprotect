@@ -62,6 +62,14 @@ export interface SuspensionRecord {
   createdAt: unknown;
 }
 
+export interface CloudLink {
+  id: string;
+  name: string;
+  url: string;
+  note?: string;
+  createdAt: unknown;
+}
+
 export interface CompanyStats {
   company: Company;
   violations: ViolationRecord[];

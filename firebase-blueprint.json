@@ -97,6 +97,18 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["violationId", "date", "description"]
+    },
+    "CloudLink": {
+      "title": "Cloud Link",
+      "description": "Information about cloud storage location links of companies or system managers",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "url"]
     }
   },
   "firestore": {
@@ -119,6 +131,10 @@
     "appeals": {
       "schema": "AppealRecord",
       "description": "Appeal records for violations"
+    },
+    "cloudLinks": {
+      "schema": "CloudLink",
+      "description": "Cloud storage and reference linkages"
     }
   }
 }

@@ -87,6 +87,14 @@ service cloud.firestore {
         && (data.get('createdAt', request.time) is timestamp);
     }
 
+    function isValidCloudLink(data) {
+      return data.keys().hasAll(['name', 'url'])
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.url is string && data.url.size() > 0 && data.url.size() <= 2000
+        && (data.get('note', '') is string && data.get('note', '').size() <= 2000)
+        && (data.get('createdAt', request.time) is timestamp);
+    }
+
     // --- Collections ---
 
     match /violationTypes/{typeId} {
@@ -124,6 +132,13 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isValidId(aId) && isValidAppeal(incoming());
       allow update: if isValidAppeal(incoming());
+      allow delete: if true;
+    }
+
+    match /cloudLinks/{linkId} {
+      allow read: if true;
+      allow create: if isValidId(linkId) && isValidCloudLink(incoming());
+      allow update: if isValidCloudLink(incoming());
       allow delete: if true;
     }
   }

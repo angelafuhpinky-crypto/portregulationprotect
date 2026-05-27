@@ -17,7 +17,8 @@ import {
   ViolationRecord, 
   SuspensionRecord, 
   CompanyStats,
-  AppealRecord
+  AppealRecord,
+  CloudLink
 } from '../types';
 
 export function useData() {
@@ -26,11 +27,12 @@ export function useData() {
   const [violations, setViolations] = useState<ViolationRecord[]>([]);
   const [suspensions, setSuspensions] = useState<SuspensionRecord[]>([]);
   const [appeals, setAppeals] = useState<AppealRecord[]>([]);
+  const [cloudLinks, setCloudLinks] = useState<CloudLink[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let counts = 0;
-    const TOTAL_STREAMS = 5;
+    const TOTAL_STREAMS = 6;
     const checkDone = () => {
       counts++;
       if (counts === TOTAL_STREAMS) setLoading(false);
@@ -67,6 +69,11 @@ export function useData() {
       checkDone();
     }, (err) => { handleFirestoreError(err, OperationType.LIST, 'appeals'); checkDone(); });
 
+    const unsubCloudLinks = onSnapshot(collection(db, 'cloudLinks'), (snapshot) => {
+      setCloudLinks(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as CloudLink)));
+      checkDone();
+    }, (err) => { handleFirestoreError(err, OperationType.LIST, 'cloudLinks'); checkDone(); });
+
     // Mark as done even if snapshots error out (handled by handleFirestoreError)
     
     // Auth-dependent collections (currently none are auth-dependent for list, but in future they might)
@@ -86,6 +93,7 @@ export function useData() {
       unsubViolations();
       unsubSuspensions();
       unsubAppeals();
+      unsubCloudLinks();
       unsubAuth();
       clearTimeout(timeout);
     };
@@ -144,6 +152,7 @@ export function useData() {
     violations,
     suspensions,
     appeals,
+    cloudLinks,
     companyStats,
     loading,
     addRecord,

@@ -8,7 +8,6 @@ import {
   Search, 
   ChevronRight, 
   Download, 
-  History, 
   Settings, 
   X, 
   Trash2, 
@@ -24,12 +23,13 @@ import {
   ExternalLink,
   PieChart,
   List,
-  Eye
+  Eye,
+  Cloud
 } from 'lucide-react';
 
 import { login, logout, verifyPassword } from './lib/firebase';
 import { useData } from './lib/useData';
-import { ViolationRecord, ViolationType, ViolationLevel, Attachment } from './types';
+import { ViolationRecord, ViolationType, ViolationLevel, Attachment, CloudLink } from './types';
 import { exportViolationsToExcel } from './lib/export';
 // import { format } from 'date-fns';
 
@@ -208,7 +208,7 @@ export default function App() {
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'violations' | 'companies' | 'suspensions' | 'config'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'violations' | 'companies' | 'suspensions' | 'config' | 'cloud'>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [showViolationModal, setShowViolationModal] = useState(false);
@@ -217,6 +217,13 @@ export default function App() {
   const [showSuspensionModal, setShowSuspensionModal] = useState(false);
   const [editingViolation, setEditingViolation] = useState<ViolationRecord | null>(null);
   const [editingConfig, setEditingConfig] = useState<ViolationType | null>(null);
+
+  // Cloud Links management state
+  const [showCloudModal, setShowCloudModal] = useState(false);
+  const [cloudName, setCloudName] = useState("");
+  const [cloudUrl, setCloudUrl] = useState("");
+  const [cloudNote, setCloudNote] = useState("");
+  const [editingCloudLink, setEditingCloudLink] = useState<CloudLink | null>(null);
 
   // Form states
   const [formLevelFilter, setFormLevelFilter] = useState<ViolationLevel | "">("");
@@ -237,6 +244,7 @@ export default function App() {
     violations, 
     suspensions, 
     appeals,
+    cloudLinks,
     companyStats, 
     loading,
     addRecord,
@@ -453,8 +461,10 @@ export default function App() {
     setPasswordLoading(true);
     setPasswordError('');
 
-    // Check if guest input guest password
-    if (passwordInput.trim().toLowerCase() === 'guest' || passwordInput.trim() === '訪客') {
+    const inputVal = passwordInput.trim();
+
+    // Check custom credentials
+    if (inputVal === '2230') {
       setPasswordLoading(false);
       sessionStorage.setItem('port_auth', 'guest');
       setUserRole('guest');
@@ -462,7 +472,15 @@ export default function App() {
       return;
     }
 
-    const ok = await verifyPassword(passwordInput.trim());
+    if (inputVal === '5622230') {
+      setPasswordLoading(false);
+      sessionStorage.setItem('port_auth', 'admin');
+      setUserRole('admin');
+      setUser(true);
+      return;
+    }
+
+    const ok = await verifyPassword(inputVal);
     setPasswordLoading(false);
     if (ok) {
       sessionStorage.setItem('port_auth', 'admin');
@@ -482,7 +500,7 @@ export default function App() {
             <Shield className="w-8 h-8" />
           </div>
           <h1 className="text-xl font-black text-slate-900 mb-1 uppercase tracking-tight">港區違規管理系統</h1>
-          <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-7">請輸入密碼或選擇角色進入</p>
+          <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-7">請輸入密碼進入</p>
           <form onSubmit={handleLogin} className="space-y-3">
             {passwordError && (
               <p className="text-sm font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-md px-3 py-2">
@@ -493,30 +511,14 @@ export default function App() {
               type="password"
               value={passwordInput}
               onChange={e => setPasswordInput(e.target.value)}
-              placeholder="輸入管理員密碼 (或訪客輸入 guest)"
+              placeholder="請輸入系統存取密碼"
               autoFocus
               className="w-full bg-slate-50 border border-slate-200 rounded-md px-4 py-3 text-center text-sm font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-port-blue focus:border-transparent animate-in fade-in"
             />
             <Button type="submit" disabled={passwordLoading} className="w-full h-11 text-xs uppercase tracking-widest font-black">
-              {passwordLoading ? '驗證中...' : '以管理員身份驗證登入'}
+              {passwordLoading ? '驗證中...' : '進行密碼驗證登入'}
             </Button>
           </form>
-
-          {/* Quick guest entry button */}
-          <Button 
-            variant="outline" 
-            className="w-full h-11 text-xs border-slate-200 mt-2 text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-bold"
-            onClick={() => {
-              sessionStorage.setItem('port_auth', 'guest');
-              setUserRole('guest');
-              setUser(true);
-            }}
-          >
-            <div className="flex items-center gap-2 justify-center">
-              <Eye className="w-4 h-4 text-slate-400" />
-              以「訪客身份」免密碼進入 (唯讀)
-            </div>
-          </Button>
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
@@ -559,6 +561,38 @@ export default function App() {
       </div>
     );
   }
+
+  const handleSaveCloudLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cloudName.trim() || !cloudUrl.trim()) return;
+
+    let formattedUrl = cloudUrl.trim();
+    if (!/^https?:\/\//i.test(formattedUrl)) {
+      formattedUrl = 'https://' + formattedUrl;
+    }
+
+    const data = {
+      name: cloudName.trim(),
+      url: formattedUrl,
+      note: cloudNote.trim(),
+    };
+
+    try {
+      if (editingCloudLink) {
+        await updateRecord('cloudLinks', editingCloudLink.id, data);
+      } else {
+        await addRecord('cloudLinks', data);
+      }
+      setShowCloudModal(false);
+      setCloudName("");
+      setCloudUrl("");
+      setCloudNote("");
+      setEditingCloudLink(null);
+    } catch (err) {
+      console.error(err);
+      alert('儲存失敗：' + (err instanceof Error ? err.message : '未知錯誤'));
+    }
+  };
 
   const handleAddViolation = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -753,12 +787,13 @@ export default function App() {
             { id: 'violations', label: '違規總表', icon: List },
             { id: 'companies', label: '公司清單', icon: Building2 },
             { id: 'suspensions', label: '扣證管理', icon: Ban },
+            { id: 'cloud', label: '雲端儲放位置', icon: Cloud },
             { id: 'config', label: '系統設定', icon: Settings },
           ].map(item => (
             <button
               key={item.id}
               onClick={() => { 
-                setActiveTab(item.id as 'dashboard' | 'violations' | 'companies' | 'suspensions' | 'config'); 
+                setActiveTab(item.id as 'dashboard' | 'violations' | 'companies' | 'suspensions' | 'config' | 'cloud'); 
                 setSelectedCompanyId(null); 
                 setIsMobileMenuOpen(false);
               }}
@@ -814,24 +849,25 @@ export default function App() {
               {activeTab === 'dashboard' ? '主要面板' : 
                activeTab === 'violations' ? '違規總表' : 
                activeTab === 'companies' ? '公司清單' : 
-               activeTab === 'suspensions' ? '扣證管理' : '系統設定'}
+               activeTab === 'suspensions' ? '扣證管理' : 
+               activeTab === 'cloud' ? '雲端儲放位置' : '系統設定'}
             </span>
           </div>
         </div>
           
-          <div className="flex items-center gap-2">
-             {/* Year Selector */}
-             <div className="flex bg-slate-100 rounded p-0.5">
-                {[2026, 2025, 2024, 2023].map(y => (
-                  <button 
-                    key={y}
-                    onClick={() => setViewYear(y)}
-                    className={`px-2 md:px-3 py-1 rounded text-[11px] md:text-[13px] font-bold transition-[background-color,color] duration-100 select-none ${viewYear === y ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 active:bg-white/70'}`}
-                  >
-                    {y}
-                  </button>
-                ))}
-             </div>
+           <div className="flex items-center gap-2">
+              {/* Year Selector */}
+              <div className="flex bg-slate-100 rounded p-0.5">
+                 {[2026].map(y => (
+                   <button 
+                     key={y}
+                     onClick={() => setViewYear(y)}
+                     className={`px-2 md:px-3 py-1 rounded text-[11px] md:text-[13px] font-bold transition-[background-color,color] duration-100 select-none ${viewYear === y ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 active:bg-white/70'}`}
+                   >
+                     {y} 年度
+                   </button>
+                 ))}
+              </div>
              {userRole === 'admin' ? (
                <Button variant="primary" className="h-8 px-2 md:px-4 text-[11px] md:text-sm" onClick={() => { setFormLevelFilter(""); setShowViolationModal(true); }}>
                   <Plus className="w-4 h-4" /> <span className="hidden xs:inline">新增記錄</span>
@@ -893,8 +929,8 @@ export default function App() {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-4">
+            <div className="space-y-4">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-[15px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
                     <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
@@ -948,26 +984,6 @@ export default function App() {
                       ))}
                     </tbody>
                   </table>
-                </Card>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-[15px] font-black uppercase tracking-widest text-slate-900">歷史紀錄存檔</h3>
-                <Card className="p-2 space-y-1">
-                  {[2025, 2024, 2023].map(year => (
-                    <button 
-                      key={year}
-                      onClick={() => { setViewYear(year); setActiveTab('violations'); }}
-                      className="w-full flex items-center justify-between p-2 hover:bg-slate-50 active:bg-slate-100 rounded group transition-[background-color] duration-75 select-none"
-                    >
-                      <div className="flex items-center gap-2">
-                        <History className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
-                        <span className="text-sm font-bold text-slate-600 uppercase tracking-wider">{year} 年度數據</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600" />
-                    </button>
-                  ))}
-                  <p className="text-xs text-slate-400 p-2 italic text-center font-bold uppercase tracking-widest border-t border-slate-50 mt-2">僅提供歷史唯讀檢核</p>
                 </Card>
               </div>
             </div>
@@ -1184,13 +1200,13 @@ export default function App() {
                     )}
                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest">年度週期:</p>
                     <div className="flex bg-slate-200 rounded p-0.5">
-                      {[2026, 2025, 2024, 2023].map(year => (
+                      {[2026].map(year => (
                         <button 
                           key={year}
                           onClick={() => setViewYear(year)}
                           className={`px-3 py-1 rounded text-xs font-black transition-[background-color,color] duration-100 select-none ${viewYear === year ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 active:bg-white/70'}`}
                         >
-                          {year}
+                          {year} 年度
                         </button>
                       ))}
                     </div>
@@ -1427,10 +1443,120 @@ export default function App() {
             )}
           </div>
         )}
+
+        {/* --- CLOUD TAB --- */}
+        {activeTab === 'cloud' && (
+          <div className="space-y-4">
+             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div>
+                <h2 className="text-[23px] font-black text-slate-900 uppercase tracking-tight">雲端儲放位置</h2>
+                <p className="text-[13px] font-bold text-slate-400 uppercase tracking-widest">公司級雲端連結與共享協作帳號</p>
+              </div>
+              {userRole === 'admin' && (
+                <Button onClick={() => { setEditingCloudLink(null); setCloudName(""); setCloudUrl(""); setCloudNote(""); setShowCloudModal(true); }}>
+                  <Plus className="w-4 h-4 mr-1" /> 新增雲端連結
+                </Button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {cloudLinks.map(link => (
+                <Card key={link.id} className="p-5 flex flex-col justify-between group border-slate-200 hover:border-slate-300 transition-all hover:shadow-md">
+                  <div>
+                    <div className="flex items-start justify-between mb-3 border-b border-slate-100 pb-2">
+                      <div className="flex items-center gap-2 text-blue-600 font-bold">
+                        <Cloud className="w-5 h-5 animate-pulse" />
+                        <span className="text-xs uppercase tracking-widest font-black">雲端連結</span>
+                      </div>
+                      {userRole === 'admin' && (
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" className="p-1 h-7 w-7" onClick={() => { setEditingCloudLink(link); setCloudName(link.name); setCloudUrl(link.url); setCloudNote(link.note || ""); setShowCloudModal(true); }}>
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button variant="ghost" className="p-1 h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={async () => { if(confirm('確定要刪除此雲端連結嗎？')) await removeRecord('cloudLinks', link.id) }}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <h4 className="text-[16px] font-black text-slate-800 leading-snug mb-2">{link.name}</h4>
+                    {link.note && (
+                      <p className="text-[13px] text-slate-500 font-medium leading-relaxed mb-4 whitespace-pre-wrap">{link.note}</p>
+                    )}
+                  </div>
+                  <div className="mt-4">
+                    <a 
+                      href={link.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-100 hover:border-blue-100 font-bold text-xs uppercase tracking-widest transition-all"
+                    >
+                      <span>開啟雲端空間</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                </Card>
+              ))}
+            </div>
+
+            {cloudLinks.length === 0 && (
+              <div className="p-20 text-center bg-white border border-slate-200 rounded">
+                <Cloud className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-sm font-black text-slate-400 uppercase tracking-widest italic mb-1">目前尚未建立任何雲端儲放位置</p>
+                {userRole === 'admin' && (
+                  <Button variant="secondary" className="mt-3 text-xs" onClick={() => { setEditingCloudLink(null); setCloudName(""); setCloudUrl(""); setCloudNote(""); setShowCloudModal(true); }}>
+                    立刻新增公司雲端連結
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </main>
       </div>
 
       {/* --- MODALS --- */}
+
+      {/* Cloud Link Add/Edit Modal */}
+      <Modal isOpen={showCloudModal} onClose={() => { setShowCloudModal(false); setEditingCloudLink(null); }} title={editingCloudLink ? "修改雲端儲放連結" : "新增雲端儲放連結"}>
+        <form onSubmit={handleSaveCloudLink} className="space-y-4">
+          <div>
+            <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">雲端位置名稱</label>
+            <input 
+              type="text"
+              required 
+              value={cloudName}
+              onChange={e => setCloudName(e.target.value)}
+              placeholder="例如：2026年維修違規佐證影像、公司共用雲端空間" 
+              className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600" 
+            />
+          </div>
+          <div>
+            <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">雲端網址連結 (URL)</label>
+            <input 
+              type="text"
+              required 
+              value={cloudUrl}
+              onChange={e => setCloudUrl(e.target.value)}
+              placeholder="例如：https://drive.google.com/..." 
+              className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600" 
+            />
+          </div>
+          <div>
+            <label className="text-[13px] font-black uppercase tracking-widest text-slate-400 mb-1 block">備註說明 / 協作帳號</label>
+            <textarea 
+              value={cloudNote}
+              onChange={e => setCloudNote(e.target.value)}
+              rows={3} 
+              placeholder="例如：請使用公司AD帳號登入，或放置特定登入帳號輔助說明..." 
+              className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-600" 
+            />
+          </div>
+          <Button type="submit" className="w-full h-11 mt-2 text-sm font-black uppercase tracking-widest">
+            {editingCloudLink ? "修改儲存連結" : "確認新增雲端連結"}
+          </Button>
+        </form>
+      </Modal>
 
       {/* Violation App Add/Edit Modal */}
       <Modal 
