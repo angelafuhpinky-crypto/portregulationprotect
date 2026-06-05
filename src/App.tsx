@@ -1808,17 +1808,29 @@ export default function App() {
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{appeal.date} 提報申訴</span>
                           {userRole === 'admin' && (
-                            <button 
-                              onClick={() => {
-                                setEditingAppeal(appeal);
-                                setAppealDescription(appeal.description);
-                                setAppealAttachments(appeal.attachments || []);
-                                setShowAppealModal(true);
-                              }}
-                              className="text-[13px] font-black text-port-blue hover:text-slate-600 uppercase tracking-widest transition-colors flex items-center gap-1"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" /> 編輯紀錄
-                            </button>
+                            <div className="flex gap-3">
+                              <button 
+                                onClick={() => {
+                                  setEditingAppeal(appeal);
+                                  setAppealDescription(appeal.description);
+                                  setAppealAttachments(appeal.attachments || []);
+                                  setShowAppealModal(true);
+                                }}
+                                className="text-[13px] font-black text-port-blue hover:text-slate-600 uppercase tracking-widest transition-colors flex items-center gap-1"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" /> 編輯紀錄
+                              </button>
+                              <button 
+                                onClick={async () => {
+                                  if (confirm('確定要刪除此筆申訴紀錄嗎？此動作無法復原。')) {
+                                    await removeRecord('appeals', appeal.id);
+                                  }
+                                }}
+                                className="text-[13px] font-black text-rose-500 hover:text-rose-700 uppercase tracking-widest transition-colors flex items-center gap-1"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> 刪除紀錄
+                              </button>
+                            </div>
                           )}
                         </div>
                         <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
